@@ -18,3 +18,9 @@ Search for `VENDOR PATCH` in this folder. Current patches:
 - **api.py `getStreamMovie`** — send `is_camrip`/`is_ads`/`is_director` flags (parsed from the
   page's `initCDNMoviesEvents` call). HDRezka started requiring them; without them the movie CDN
   request returns `success:true` but `url:false`.
+- **api.py `favs` + `makeRequest`** — parse the per-page `#ctrl_favs` UUID token and send it as
+  `favs` on every get_stream/get_movie CDN call, plus the `X-Requested-With`/`Referer` headers a
+  browser sends. HDRezka added `favs` as anti-scraping; without it the CDN returns
+  `success:true, url:false`. `makeRequest` also now raises a descriptive `FetchFailed` message
+  (geo-restriction / login / premium hints) instead of a bare "Failed to fetch stream!".
+- **errors.py `FetchFailed`** — accepts an optional message (for the diagnostics above).

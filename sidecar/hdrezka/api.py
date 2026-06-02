@@ -98,6 +98,14 @@ class HdRezkaApi():
 		)
 
 	@cached_property
+	def favs(self):
+		# VENDOR PATCH (ours): HDRezka added a per-page UUID token (hidden #ctrl_favs) that the
+		# browser sends as `favs` on the get_stream/get_movie CDN call. Without it the CDN replies
+		# success:true but url:false. Parse it here; empty string if the page doesn't have one.
+		el = self.soup.find(id="ctrl_favs")
+		return el.attrs.get("value") if el else ""
+
+	@cached_property
 	def name(self): return self.names[0]
 
 	@cached_property
@@ -340,7 +348,11 @@ class HdRezkaApi():
 	):
 		def strip_html(html): return re.sub(r'<[^>]*>', '', html)
 		def makeRequest(data):
-			r = requests.post(f"{self.origin}/ajax/get_cdn_series/", data=data, headers=self.HEADERS, proxies=self.proxy, cookies=self.cookies)
+			# VENDOR PATCH (ours): send the per-page `favs` token + the XHR/Referer headers a real
+			# browser sends; HDRezka's CDN otherwise returns success:true with url:false.
+			data = {**data, "favs": self.favs}
+			headers = {**self.HEADERS, "X-Requested-With": "XMLHttpRequest", "Referer": self.url}
+			r = requests.post(f"{self.origin}/ajax/get_cdn_series/", data=data, headers=headers, proxies=self.proxy, cookies=self.cookies)
 			r = r.json()
 			if r['success'] and r['url']:
 				arr = self.clearTrash(r['url']).split(",")
@@ -355,7 +367,12 @@ class HdRezkaApi():
 					for video in links:
 						stream.append(quality, video)
 				return stream
-			raise FetchFailed()
+			# VENDOR PATCH (ours): more useful diagnostics than a bare FetchFailed.
+			if r.get('success') and not r.get('url'):
+				if r.get('premium_content'):
+					raise FetchFailed("HDRezka returned no stream (premium content — a logged-in/premium account is required).")
+				raise FetchFailed("HDRezka accepted the request but returned no stream URL. This usually means the content is geo-restricted for your IP (try the proxy in Settings or a VPN) or requires login.")
+			raise FetchFailed(r.get('message') or "Failed to fetch stream!")
 
 		def getStreamSeries(self, season, episode, translation_id):
 			return makeRequest({
