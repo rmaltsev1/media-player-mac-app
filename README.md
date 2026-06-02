@@ -57,11 +57,28 @@ open RezkaPlayer.xcodeproj          # ⌘R to run
 
 On first run, open **Settings** and set the HDRezka mirror domain you want to use.
 
+## Streaming from a geo-blocked region (proxy)
+
+HDRezka's **video CDN** is geo-blocked in some regions (e.g. the UK): the site loads, but stream
+URLs come back empty (`success:true, url:false`). Because the video bytes are fetched by AVPlayer /
+URLSession — which can't use a SOCKS proxy directly — the app routes **all** geo-sensitive traffic
+(scraping **and** playback **and** downloads) through the Python sidecar:
+
+- Set a **Proxy URL** in Settings, e.g. `socks5://user:pass@host:1080` (HTTP proxies work too).
+- The sidecar uses it for scraping, and exposes a local `/relay` endpoint that streams the video
+  through the proxy with HTTP Range support, so playback and downloads egress via the proxy while
+  the rest of your Mac stays on its normal connection.
+
+Most consumer VPNs can give you a standalone **SOCKS5 endpoint** (works without the VPN app being
+"connected"): e.g. Private Internet Access, NordVPN, Windscribe, Mullvad. Use that host/port (and
+credentials, if any) in the Proxy field. Alternatively, just run a system-wide VPN and leave the
+Proxy field empty.
+
 ## Notes & limitations
 
-- **Streaming is IP-gated.** HDRezka's CDN won't generate stream URLs for many datacenter IPs
+- **Streaming is IP-gated.** HDRezka's CDN won't generate stream URLs for blocked/datacenter IPs
   (it returns `success:true, url:false`). Browsing and metadata still work; streaming needs a
-  residential connection or the in-app proxy. This is not an app bug.
+  permitted region — see the proxy section above. This is not an app bug.
 - **Dev build runs unsandboxed** and points at this repo's `sidecar/` folder by default
   (overridable in Settings). Before distributing, a standalone Python should be bundled and the
   sandbox re-enabled — see `CLAUDE.md`.

@@ -3,6 +3,7 @@ import AVKit
 
 struct PlayerView: View {
     let target: PlayerTarget
+    @EnvironmentObject var state: AppState
     @State private var player: AVPlayer?
 
     var body: some View {
@@ -20,19 +21,15 @@ struct PlayerView: View {
 
     private func setup() {
         guard player == nil else { return }
-        let url: URL?
-        if target.isLocal {
-            url = URL(fileURLWithPath: target.urlString)
-        } else {
-            url = URL(string: target.urlString)
-        }
-        guard let url else { return }
-
         let item: AVPlayerItem
         if target.isLocal {
-            item = AVPlayerItem(url: url)
+            item = AVPlayerItem(url: URL(fileURLWithPath: target.urlString))
         } else {
-            // HDRezka CDN expects a browser-like User-Agent.
+            // When a proxy is set this becomes a 127.0.0.1 relay URL so the video egresses
+            // through the proxy; otherwise it's the CDN URL directly.
+            let effective = state.playbackURLString(for: target.urlString)
+            guard let url = URL(string: effective) else { return }
+            // HDRezka CDN expects a browser-like User-Agent (harmless for the local relay).
             let headers = ["User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
                            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"]
             let asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])

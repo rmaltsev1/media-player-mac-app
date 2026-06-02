@@ -62,9 +62,12 @@ final class DownloadManager: NSObject, ObservableObject {
 
     // MARK: Public API
 
-    /// Begin downloading a stream URL. `key` lets callers de-dupe (e.g. pageURL+quality+ep).
+    /// Begin downloading a stream. `streamURL` is the real CDN URL we store for reference;
+    /// `fetchURL` is what we actually GET (the sidecar relay when a proxy is active, so the
+    /// bytes egress through the proxy). Defaults to `streamURL` when not proxied.
     func startDownload(title: String, pageURL: String, streamURL: String,
-                       quality: String, posterURL: String?, seasonEpisode: String? = nil) {
+                       quality: String, posterURL: String?, seasonEpisode: String? = nil,
+                       fetchURL: String? = nil) {
         let id = UUID()
         let fileName = "\(id.uuidString).mp4"
         var item = DownloadItem(
@@ -76,7 +79,7 @@ final class DownloadManager: NSObject, ObservableObject {
         items.insert(item, at: 0)
         save()
 
-        guard let url = URL(string: streamURL) else {
+        guard let url = URL(string: fetchURL ?? streamURL) else {
             item.state = .failed
             update(item)
             return

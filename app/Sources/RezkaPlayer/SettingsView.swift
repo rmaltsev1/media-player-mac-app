@@ -21,6 +21,25 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Proxy (for geo-restricted streaming)") {
+                TextField("Proxy URL", text: $state.proxyURLString,
+                          prompt: Text("socks5://user:pass@host:1080"))
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { state.pushProxyConfig() }
+                Text("HDRezka's video CDN is geo-blocked in some regions. A SOCKS5/HTTP proxy in a "
+                     + "permitted region routes scraping, playback and downloads through it. Many "
+                     + "VPNs expose a SOCKS5 endpoint (PIA, NordVPN, Windscribe, Mullvad). Leave "
+                     + "empty to go direct.")
+                    .font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Button("Apply proxy") { state.pushProxyConfig() }
+                    Spacer()
+                    Label(state.proxyEnabled ? "Proxy on" : "Direct",
+                          systemImage: state.proxyEnabled ? "lock.shield" : "globe")
+                        .font(.caption).foregroundStyle(state.proxyEnabled ? .green : .secondary)
+                }
+            }
+
             Section("Python helper") {
                 LabeledContent("Status") { Text(statusText).foregroundStyle(.secondary) }
                 TextField("Sidecar folder", text: $sidecarDir).textFieldStyle(.roundedBorder)

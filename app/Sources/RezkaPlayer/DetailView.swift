@@ -245,7 +245,8 @@ struct DetailView: View {
         state.downloads.startDownload(
             title: titleForPlayback(), pageURL: item.url, streamURL: url,
             quality: q, posterURL: info.thumbnail ?? item.image,
-            seasonEpisode: seasonEpisodeTag
+            seasonEpisode: seasonEpisodeTag,
+            fetchURL: state.playbackURLString(for: url)   // relay when proxied, else direct
         )
     }
 }

@@ -76,6 +76,7 @@ final class SidecarManager: ObservableObject {
         var env = ProcessInfo.processInfo.environment
         env["REZKA_SIDECAR_TOKEN"] = token
         env["PYTHONUNBUFFERED"] = "1"
+        env["REZKA_SIDECAR_MANAGED"] = "1"   // enables the stdin-EOF watchdog in server.py
         proc.environment = env
 
         let out = Pipe(); let err = Pipe(); let inn = Pipe()

@@ -5,37 +5,79 @@ Local JSON HTTP sidecar for the RezkaPlayer macOS app.
 The SwiftUI app spawns this process on 127.0.0.1 and talks to it over HTTP. All HDRezka
 scraping happens here via the vendored `hdrezka` package + our `browse` module.
 
-Endpoints (all POST with a JSON body, except /health):
+Endpoints (POST + JSON body, except GET /health and GET /relay):
   GET  /health                          -> {"ok": true, "version": ...}
+  POST /config   {proxy?}               -> set a process-wide proxy used for ALL traffic
   POST /search   {origin, query, find_all?}            -> [{title,url,rating|image,category}]
   POST /browse   {origin, collection?, category?, page?} -> [{title,url,image,category,rating,...}]
   POST /info     {origin, url}                          -> {metadata, translators, episodes?}
   POST /stream   {origin, url, translation?, season?, episode?} -> {videos, subtitles, ...}
+  GET  /relay?u=<urlenc cdn>&t=<token>&r=<referer> -> streams the video bytes (Range-aware)
+                                          through the configured proxy, so AVPlayer/URLSession
+                                          (which can't use a SOCKS proxy directly) egress via it.
 
-Every request may include {cookies?, proxy?} so the app can add login/proxy later without a
-protocol change. `origin` is the configurable HDRezka mirror.
+`origin` is the configurable HDRezka mirror. A proxy set via /config is applied to every request,
+including the video relay — this is how we tunnel geo-restricted CDN traffic.
 
-Auth: if env REZKA_SIDECAR_TOKEN is set, requests must send header `X-Auth-Token` matching it.
+Auth: if env REZKA_SIDECAR_TOKEN is set, requests must send header `X-Auth-Token` (or, for /relay,
+the `t` query param) matching it.
 """
 
 import argparse
+import base64
 import json
 import os
 import sys
 import threading
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse, parse_qs
+
+import requests
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from hdrezka.api import HdRezkaApi
 from hdrezka.search import HdRezkaSearch
-from hdrezka.types import TVSeries, Movie
+from hdrezka.types import TVSeries, Movie, default_headers
 from browse import Browse, CATEGORIES, COLLECTIONS
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 AUTH_TOKEN = os.environ.get("REZKA_SIDECAR_TOKEN")
+
+# Process-wide proxy (requests-style {"http":..,"https":..}), set via POST /config.
+# Applied to scraping AND the video relay so all geo-sensitive traffic shares one egress.
+PROXY = {}
+
+
+def build_proxies(proxy):
+    """Normalize a proxy spec into a requests proxies dict.
+    Accepts a dict (returned as-is) or a string like 'socks5://user:pass@host:1080',
+    'http://host:8080', or bare 'host:1080' (assumed SOCKS5 with remote DNS)."""
+    if not proxy:
+        return {}
+    if isinstance(proxy, dict):
+        return proxy
+    s = str(proxy).strip()
+    if not s:
+        return {}
+    if "://" not in s:
+        s = "socks5h://" + s          # bare host:port -> SOCKS5 with DNS at the proxy
+    elif s.startswith("socks5://"):
+        s = "socks5h://" + s[len("socks5://"):]   # resolve DNS at proxy (better for geo)
+    return {"http": s, "https": s}
+
+
+def proxy_for(body):
+    """Per-request proxy override, else the process-wide PROXY."""
+    p = build_proxies(body.get("proxy"))
+    return p or PROXY
+
+
+def _b64url_decode(s):
+    """Decode URL-safe base64 without padding (how the app encodes relay params)."""
+    s = s + "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s.encode("ascii")).decode("utf-8")
 
 
 # ---------- serialization helpers ----------
@@ -71,7 +113,7 @@ def make_api(body):
     url = abs_url(origin, body.get("url") or origin)
     return HdRezkaApi(
         url,
-        proxy=body.get("proxy") or {},
+        proxy=proxy_for(body),
         cookies=body.get("cookies") or {},
         headers=body.get("headers") or {},
     )
@@ -81,14 +123,22 @@ def make_api(body):
 
 def h_health(_body):
     return {"ok": True, "version": __version__,
-            "categories": CATEGORIES, "collections": list(COLLECTIONS.keys())}
+            "categories": CATEGORIES, "collections": list(COLLECTIONS.keys()),
+            "proxy": bool(PROXY)}
+
+
+def h_config(body):
+    """Set the process-wide proxy. Body: {proxy: "socks5://.."|""|null}."""
+    global PROXY
+    PROXY = build_proxies(body.get("proxy"))
+    return {"ok": True, "proxy": bool(PROXY)}
 
 
 def h_search(body):
     origin = body["origin"]
     query = body["query"]
     find_all = bool(body.get("find_all"))
-    search = HdRezkaSearch(origin, proxy=body.get("proxy") or {},
+    search = HdRezkaSearch(origin, proxy=proxy_for(body),
                            cookies=body.get("cookies") or {})
     if not find_all:
         results = search.fast_search(query)
@@ -110,7 +160,7 @@ def h_search(body):
 
 def h_browse(body):
     origin = body["origin"]
-    b = Browse(origin, proxy=body.get("proxy") or {},
+    b = Browse(origin, proxy=proxy_for(body),
                cookies=body.get("cookies") or {})
     items = b.list(
         collection=body.get("collection", "best"),
@@ -189,11 +239,19 @@ def _safe(fn, default=None):
 
 
 ROUTES = {
+    "/config": h_config,
     "/search": h_search,
     "/browse": h_browse,
     "/info": h_info,
     "/stream": h_stream,
 }
+
+# Headers a browser sends to HDRezka's CDN; some edges require a UA/Referer.
+RELAY_HEADERS = {**default_headers}
+# Headers we pass through from the client (AVPlayer) to the upstream CDN.
+RELAY_FORWARD = ("range",)
+# Upstream response headers we surface back to the client.
+RELAY_EXPOSE = ("content-type", "content-length", "content-range", "accept-ranges")
 
 
 # ---------- HTTP plumbing ----------
@@ -218,9 +276,66 @@ class Handler(BaseHTTPRequestHandler):
         return self.headers.get("X-Auth-Token") == AUTH_TOKEN
 
     def do_GET(self):
-        if self.path.split("?")[0] == "/health":
+        path = self.path.split("?")[0]
+        if path == "/health":
             return self._send(200, h_health({}))
+        if path == "/relay":
+            return self._relay()
         return self._send(404, {"error": "not found"})
+
+    def _relay(self):
+        """Stream a CDN video to the client through the configured proxy, forwarding Range
+        requests so AVPlayer can seek. This is how playback/downloads egress via the proxy."""
+        q = parse_qs(urlparse(self.path).query)
+        token = (q.get("t") or [None])[0]
+        if AUTH_TOKEN and token != AUTH_TOKEN and self.headers.get("X-Auth-Token") != AUTH_TOKEN:
+            return self._send(401, {"error": "unauthorized"})
+        raw_u = (q.get("u") or [None])[0]
+        if not raw_u:
+            return self._send(400, {"error": "missing u"})
+        try:
+            target = _b64url_decode(raw_u)             # CDN url, base64url-encoded by the app
+        except Exception:
+            return self._send(400, {"error": "bad u"})
+        raw_r = (q.get("r") or [None])[0]
+        referer = _b64url_decode(raw_r) if raw_r else None
+
+        headers = dict(RELAY_HEADERS)
+        if referer:
+            headers["Referer"] = referer
+        for h in RELAY_FORWARD:
+            v = self.headers.get(h)
+            if v:
+                headers[h] = v
+
+        try:
+            upstream = requests.get(target, headers=headers, proxies=PROXY,
+                                    stream=True, allow_redirects=True, timeout=(15, 60))
+        except Exception as e:
+            return self._send(502, {"error": f"relay failed: {e}"})
+
+        try:
+            self.send_response(upstream.status_code)
+            passed_len = False
+            for h in RELAY_EXPOSE:
+                if h in upstream.headers:
+                    self.send_header(h.title(), upstream.headers[h])
+                    if h == "content-length":
+                        passed_len = True
+            if not passed_len:
+                # No length -> we can't keep-alive; close after streaming.
+                self.send_header("Connection", "close")
+                self.close_connection = True
+            self.end_headers()
+            for chunk in upstream.iter_content(64 * 1024):
+                if chunk:
+                    self.wfile.write(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # client (AVPlayer) seeked or closed; normal
+        except Exception:
+            traceback.print_exc()
+        finally:
+            upstream.close()
 
     def do_POST(self):
         if not self._authed():
@@ -261,7 +376,10 @@ def main():
     ap.add_argument("--port", type=int, default=8777)
     args = ap.parse_args()
 
-    threading.Thread(target=_watch_parent_via_stdin, daemon=True).start()
+    # Only watch stdin when the app launched us (it holds the write end open). Manual/CI runs
+    # would otherwise see immediate EOF and exit. The app sets REZKA_SIDECAR_MANAGED=1.
+    if os.environ.get("REZKA_SIDECAR_MANAGED") == "1":
+        threading.Thread(target=_watch_parent_via_stdin, daemon=True).start()
 
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     # Print a machine-readable ready line so the app knows the actual bound port.

@@ -41,7 +41,9 @@ The built app lives under `~/Library/Developer/Xcode/DerivedData/RezkaPlayer-*/B
   line, and sends a per-launch `X-Auth-Token` header on every request.
 - **Sidecar cleanup is belt-and-suspenders:** the app calls `stop()` on `willTerminate`, *and*
   `server.py` runs a stdin-EOF watchdog thread so it self-terminates if the app crashes /
-  force-quits. Don't remove either — together they prevent orphaned Python processes.
+  force-quits. Don't remove either — together they prevent orphaned Python processes. The watchdog
+  only runs when `REZKA_SIDECAR_MANAGED=1` (set by the app); otherwise a manual/CI `python
+  server.py` would exit instantly on its already-EOF stdin.
 - **All scraping lives in the sidecar.** Swift never scrapes HTML. To add a capability, add a
   `server.py` endpoint + a method on `APIClient`, then a model in `Models.swift`.
 - **Every sidecar request accepts `cookies` and `proxy`** (login + geo-bypass were designed in
@@ -57,11 +59,23 @@ may include `cookies`, `proxy`, `headers`.
 
 | Endpoint   | Body                                              | Returns |
 |------------|---------------------------------------------------|---------|
-| `/health`  | —                                                 | `{ok, version, categories, collections}` |
+| `GET /health`  | —                                             | `{ok, version, categories, collections, proxy}` |
+| `/config`  | `proxy` (`"socks5://.."` or `""`)                 | `{ok, proxy}` — sets a process-wide proxy for all traffic |
 | `/search`  | `query`, `find_all?`, `page?`                      | `{results: [CatalogueItem]}` |
 | `/browse`  | `collection` (best/latest/watching), `category`, `page?` | `{results: [CatalogueItem]}` |
 | `/info`    | `url`                                              | `TitleInfo` (metadata, translators, episodes?) |
 | `/stream`  | `url`, `translation?`, `season?`, `episode?`      | `{videos: {quality:[urls]}, subtitles, ...}` |
+| `GET /relay` | query: `u`=b64url(cdn), `t`=token, `r`=b64url(origin) | streams the video (Range-aware) through the configured proxy |
+
+### Proxy / relay (geo-restriction)
+
+HDRezka's video CDN is geo-blocked in some regions. AVPlayer/URLSession can't use a SOCKS proxy
+directly, so geo-sensitive traffic is funneled through the sidecar: set a proxy via `/config`, and
+the app rewrites stream/download URLs to the local `GET /relay?u=...` endpoint
+(`AppState.playbackURLString`). The relay fetches the CDN bytes through the proxy and forwards Range
+requests so AVPlayer can seek. `u`/`r` are URL-safe base64 (see `AppState.b64url` ↔
+`server._b64url_decode`) to avoid percent/`+` decoding ambiguity. SOCKS needs `PySocks`
+(`socks5://` is upgraded to `socks5h://` so DNS resolves at the proxy).
 
 ## Known gotcha — streaming is IP-gated
 

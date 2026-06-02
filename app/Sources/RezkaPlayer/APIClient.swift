@@ -13,6 +13,15 @@ final class APIClient {
 
     // MARK: Endpoints
 
+    struct ConfigResponse: Decodable { let ok: Bool; let proxy: Bool }
+
+    /// Set the sidecar's process-wide proxy ("" clears it). Returns whether a proxy is active.
+    @discardableResult
+    func configure(proxy: String) async throws -> Bool {
+        let r: ConfigResponse = try await post("/config", ["proxy": proxy])
+        return r.proxy
+    }
+
     func search(_ query: String, advanced: Bool = false, page: Int = 1) async throws -> [CatalogueItem] {
         let body: [String: Any] = ["query": query, "find_all": advanced, "page": page]
         let r: SearchResponse = try await post("/search", body)
