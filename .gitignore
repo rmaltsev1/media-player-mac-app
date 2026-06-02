@@ -1,0 +1,16 @@
+# Python
+sidecar/.venv/
+__pycache__/
+*.pyc
+
+# Xcode / Swift
+app/.build/
+app/RezkaPlayer.xcodeproj/
+DerivedData/
+*.xcuserstate
+.DS_Store
+
+# App runtime data (downloads, caches) - never commit
+*.mp4
+*.vtt
+downloads/

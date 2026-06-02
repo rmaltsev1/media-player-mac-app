@@ -1,0 +1,44 @@
+name: RezkaPlayer
+options:
+  bundleIdPrefix: com.rezkaplayer
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    PRODUCT_NAME: RezkaPlayer
+    ENABLE_HARDENED_RUNTIME: YES
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGNING_ALLOWED: NO
+
+targets:
+  RezkaPlayer:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/RezkaPlayer
+    info:
+      path: Sources/RezkaPlayer/Info.plist
+      properties:
+        CFBundleDisplayName: Rezka Player
+        CFBundleShortVersionString: "0.1.0"
+        LSMinimumSystemVersion: "14.0"
+        NSHighResolutionCapable: true
+        # Allow the app to talk to the local sidecar over plain HTTP on loopback.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+          NSExceptionDomains:
+            127.0.0.1:
+              NSExceptionAllowsInsecureHTTPLoads: true
+    entitlements:
+      path: Sources/RezkaPlayer/RezkaPlayer.entitlements
+      properties:
+        # Sandbox OFF for now: we spawn a Python helper and write downloads freely.
+        # (Re-enable + add a bundled helper before any distribution.)
+        com.apple.security.app-sandbox: false
+        com.apple.security.network.client: true
