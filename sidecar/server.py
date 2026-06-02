@@ -25,6 +25,7 @@ import sys
 import threading
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urljoin
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -38,6 +39,14 @@ AUTH_TOKEN = os.environ.get("REZKA_SIDECAR_TOKEN")
 
 
 # ---------- serialization helpers ----------
+
+def abs_url(origin, url):
+    """Resolve a possibly-relative HDRezka URL (e.g. '/films/x.html') against the origin.
+    Some mirrors return relative hrefs in search/browse listings."""
+    if not url:
+        return url
+    return urljoin(origin.rstrip("/") + "/", url)
+
 
 def ser_type(t):
     if t is None:
@@ -59,7 +68,7 @@ def ser_rating(r):
 
 def make_api(body):
     origin = body["origin"]
-    url = body.get("url") or origin
+    url = abs_url(origin, body.get("url") or origin)
     return HdRezkaApi(
         url,
         proxy=body.get("proxy") or {},
@@ -82,7 +91,10 @@ def h_search(body):
     search = HdRezkaSearch(origin, proxy=body.get("proxy") or {},
                            cookies=body.get("cookies") or {})
     if not find_all:
-        return {"results": search.fast_search(query)}
+        results = search.fast_search(query)
+        for it in results:
+            it["url"] = abs_url(origin, it.get("url"))
+        return {"results": results}
     # advanced search: collect first page (or requested page)
     res = search.advanced_search(query)
     page = int(body.get("page", 1))
@@ -90,19 +102,23 @@ def h_search(body):
     out = []
     for it in items:
         it = dict(it)
+        it["url"] = abs_url(origin, it.get("url"))
         it["category"] = ser_type(it.get("category"))
         out.append(it)
     return {"results": out}
 
 
 def h_browse(body):
-    b = Browse(body["origin"], proxy=body.get("proxy") or {},
+    origin = body["origin"]
+    b = Browse(origin, proxy=body.get("proxy") or {},
                cookies=body.get("cookies") or {})
     items = b.list(
         collection=body.get("collection", "best"),
         category=body.get("category", "films"),
         page=int(body.get("page", 1)),
     )
+    for it in items:
+        it["url"] = abs_url(origin, it.get("url"))
     return {"results": items}
 
 
