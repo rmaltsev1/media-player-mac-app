@@ -9,7 +9,9 @@ struct PlayerView: View {
     var body: some View {
         Group {
             if let player {
-                VideoPlayer(player: player)
+                // Host AVKit's native AVPlayerView directly. We deliberately avoid SwiftUI's
+                // `VideoPlayer`, which crashes during view-metadata instantiation on macOS 26.
+                AVPlayerViewContainer(player: player)
                     .onDisappear { player.pause() }
             } else {
                 CenteredMessage(systemImage: "play.slash", title: "Can't play this stream")
@@ -38,5 +40,29 @@ struct PlayerView: View {
         let p = AVPlayer(playerItem: item)
         p.play()
         player = p
+    }
+}
+
+/// Native AppKit AVKit player view, with inline controls, full-screen toggle and PiP.
+private struct AVPlayerViewContainer: NSViewRepresentable {
+    let player: AVPlayer
+
+    func makeNSView(context: Context) -> AVPlayerView {
+        let view = AVPlayerView()
+        view.player = player
+        view.controlsStyle = .inline
+        view.allowsPictureInPicturePlayback = true
+        view.showsFullScreenToggleButton = true
+        view.videoGravity = .resizeAspect
+        return view
+    }
+
+    func updateNSView(_ nsView: AVPlayerView, context: Context) {
+        if nsView.player !== player { nsView.player = player }
+    }
+
+    static func dismantleNSView(_ nsView: AVPlayerView, coordinator: ()) {
+        nsView.player?.pause()
+        nsView.player = nil
     }
 }
