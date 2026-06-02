@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct DownloadsView: View {
     @EnvironmentObject var state: AppState
@@ -61,6 +62,11 @@ private struct DownloadRow: View {
                 .buttonStyle(.plain)
             }
             Menu {
+                if item.state == .completed {
+                    Button { revealInFinder() } label: {
+                        Label("Show in Finder", systemImage: "folder")
+                    }
+                }
                 Button(role: .destructive) { state.downloads.delete(item) } label: {
                     Label("Delete", systemImage: "trash")
                 }
@@ -71,6 +77,19 @@ private struct DownloadRow: View {
             .fixedSize()
         }
         .padding(.vertical, 6)
+        .contextMenu {
+            if item.state == .completed {
+                Button { revealInFinder() } label: { Label("Show in Finder", systemImage: "folder") }
+            }
+            Button(role: .destructive) { state.downloads.delete(item) } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private func revealInFinder() {
+        let url = state.downloads.localURL(for: item)
+        NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
     private var statusLabel: some View {
