@@ -8,54 +8,78 @@ in-tree when HDRezka changes.
 
 ## Features
 
-- **Browse the catalogue** — Films, Series, Cartoons, Anime, plus a "Now Watching" home feed.
-- **Top-ranked / Latest** toggle per category.
-- **Search** HDRezka by title (poster grid results).
-- **Stream in-app** with an AVKit player — pick the **translation** (dub/voiceover/subs) and the
+**Browse & discover**
+- Catalogue by category — Films, Series, Cartoons, Anime — plus a "Now Watching" home feed.
+- **Sort** (Top-ranked / Latest / Popular / Watching) and filter by **genre** and **year**.
+- **Search** HDRezka by title (poster-grid results).
+- **Similar titles** row on every detail page.
+
+**Watch**
+- **Stream in-app** with a native AVKit player — pick the **translation** (dub/voiceover/subs) and
   **resolution** (360p–1080p Ultra). Series get season/episode pickers.
-- **Download** any title in the resolution you choose; watch it **offline** from the Downloads tab.
-- **Configurable mirror** — paste a working HDRezka domain in Settings (it rotates / geo-blocks),
-  with optional proxy support designed in.
+- **Continue Watching** row + **resume from where you left off**.
+- **Auto-play the next episode** of a series.
+- Remembers your **preferred resolution** and **per-title translation**.
+
+**Library**
+- **Watch Later** bookmarks and a **History** of watched titles.
+- **Mark as watched** (auto on finish) + a **Hide-watched** toggle and a watched badge on posters.
+- **Download** any title/resolution; **pause/resume**; watch **offline** from the Downloads tab;
+  **download a whole season** at once; "Show in Finder".
+
+**Account & network**
+- **Log in to HDRezka** (cookies stored in the macOS Keychain) for premium translations / higher
+  resolutions.
+- **Configurable mirror** domain and an optional **proxy** (for geo-blocked regions — see below).
+
+**System**
+- **Menu-bar mini-controller** (helper status + active downloads) and **download-finished
+  notifications**.
 
 ## Architecture
 
 ```
 ┌──────────────────────────────┐
 │  RezkaPlayer.app (SwiftUI)    │   Native UI · AVKit player · downloads · offline library
-│  - browses catalogue / top    │
-│  - streams & downloads        │
+│  - browse / search / filter   │
+│  - stream / download / resume │
 └───────────────┬──────────────┘
         local HTTP (127.0.0.1, token-guarded)
 ┌───────────────┴──────────────┐
-│  Python sidecar               │   stdlib http.server + vendored HdRezkaApi + our browse module
-│  (server.py)                  │   search / browse / info / stream
+│  Python sidecar (server.py)   │   stdlib http.server + vendored HdRezkaApi + our browse module
+│  search/browse/info/stream/   │   …login + a Range-aware video relay for proxying
+│  config/login/relay           │
 └──────────────────────────────┘
 ```
 
 - **`app/`** — SwiftUI macOS app. The Xcode project is generated from `app/project.yml` via
-  [XcodeGen](https://github.com/yonaskolb/XcodeGen) (the `.xcodeproj` is gitignored).
+  [XcodeGen](https://github.com/yonaskolb/XcodeGen) (the `.xcodeproj` is gitignored). App data
+  (Watch Later, History, resume positions, downloads, login) persists as JSON / Keychain under
+  `~/Library/Application Support/RezkaPlayer/`.
 - **`sidecar/`** — Python helper the app spawns on a local port and talks to over JSON/HTTP.
   - **`sidecar/hdrezka/`** — vendored HdRezkaApi (mirror of upstream; only `VENDOR PATCH`-marked
     edits, documented in `VENDORED.md`).
-  - **`sidecar/browse.py`** — our catalogue / top-ranked browsing (HDRezka list pages).
-  - **`sidecar/server.py`** — the local JSON server (`/health`, `/search`, `/browse`, `/info`,
-    `/stream`).
+  - **`sidecar/browse.py`** — our catalogue browsing, genre/year/sort paths, and similar-title parsing.
+  - **`sidecar/server.py`** — the local JSON server.
+- **`scripts/`** — `package.sh` (build a shareable DMG) and `build-sidecar.sh` (freeze the sidecar).
 
-## Getting started
+See **`CLAUDE.md`** for architecture details, conventions, and the full endpoint reference.
+
+## Getting started (development)
 
 ```bash
 # 1. Sidecar deps (Python 3.9+). The app launches the sidecar itself; this is just the venv it uses.
 cd sidecar
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt          # requests, beautifulsoup4, PySocks
 
 # 2. App (needs Xcode 26 and xcodegen: `brew install xcodegen`)
 cd ../app
 xcodegen generate
-open RezkaPlayer.xcodeproj          # ⌘R to run
+open RezkaPlayer.xcodeproj                # ⌘R to run
 ```
 
-On first run, open **Settings** and set the HDRezka mirror domain you want to use.
+On first run, open **Settings** and set the HDRezka mirror domain (and a proxy if needed).
 
 ## Streaming from a geo-blocked region (proxy)
 
@@ -65,14 +89,14 @@ URLSession — which can't use a SOCKS proxy directly — the app routes **all**
 (scraping **and** playback **and** downloads) through the Python sidecar:
 
 - Set a **Proxy URL** in Settings, e.g. `socks5://user:pass@host:1080` (HTTP proxies work too).
-- The sidecar uses it for scraping, and exposes a local `/relay` endpoint that streams the video
+- The sidecar uses it for scraping and exposes a local `/relay` endpoint that streams the video
   through the proxy with HTTP Range support, so playback and downloads egress via the proxy while
   the rest of your Mac stays on its normal connection.
 
-Most consumer VPNs can give you a standalone **SOCKS5 endpoint** (works without the VPN app being
-"connected"): e.g. Private Internet Access, NordVPN, Windscribe, Mullvad. Use that host/port (and
-credentials, if any) in the Proxy field. Alternatively, just run a system-wide VPN and leave the
-Proxy field empty.
+Easiest option: just run a **system-wide VPN** to a permitted region and leave the Proxy field
+empty. For app-only proxying, some providers expose a standalone **SOCKS5 endpoint** (e.g. Private
+Internet Access). Note: HDRezka also blocklists many **datacenter/hosting** IPs, so a cheap VPS may
+be refused regardless of country — a consumer VPN's IP usually works.
 
 ## Build a shareable app (.dmg)
 
@@ -87,29 +111,28 @@ This freezes the sidecar with PyInstaller (bundled into the app), builds the app
 ad-hoc signs it, and wraps it in a DMG with an `INSTALL` note. The app launches its **bundled**
 sidecar, so there's no venv dependency.
 
-**Sharing it:** send the `.dmg` directly (AirDrop / Drive / etc.), or attach it to a GitHub Release:
+**Automated releases:** pushing a `v*` tag runs `.github/workflows/release.yml`, which builds the
+DMG on a macOS runner and publishes it as a GitHub Release:
 
 ```bash
-gh release create v0.1.0 build/RezkaPlayer.dmg -t "RezkaPlayer 0.1.0" -n "Apple Silicon build"
+git tag v0.2.0 && git push origin v0.2.0
 ```
-(For a private repo, release assets aren't publicly downloadable — share the `.dmg` file directly, or
-make the repo/release public.)
 
 **Installing (recipient):** drag to Applications, then **first launch only** right-click → **Open**
 (it's ad-hoc signed, not notarized). If macOS still blocks it:
-`xattr -dr com.apple.quarantine /Applications/RezkaPlayer.app`. For true double-click-and-run with no
-warnings, the app must be signed with an Apple Developer ID and notarized (paid).
+`xattr -dr com.apple.quarantine /Applications/RezkaPlayer.app`. (For a private repo, Release assets
+aren't publicly downloadable — share the `.dmg` directly, or make the repo/release public.) See
+`BACKLOG.md` for the planned Sparkle auto-update + notarized-distribution work.
 
 ## Notes & limitations
 
 - **Streaming is IP-gated.** HDRezka's CDN won't generate stream URLs for blocked/datacenter IPs
-  (it returns `success:true, url:false`). Browsing and metadata still work; streaming needs a
-  permitted region — see the proxy section above. This is not an app bug.
-- **Dev build runs unsandboxed** and points at this repo's `sidecar/` folder by default
-  (overridable in Settings). Before distributing, a standalone Python should be bundled and the
-  sandbox re-enabled — see `CLAUDE.md`.
-
-See **`CLAUDE.md`** for architecture details, conventions, and the endpoint reference.
+  (`success:true, url:false`). Browsing and metadata still work; streaming needs a permitted region
+  — see the proxy section. This is not an app bug.
+- **Pause/resume is in-session** — a download paused, then resumed after relaunching the app,
+  restarts from scratch (resume data isn't persisted yet).
+- **Dev build runs unsandboxed** and (in Debug) points at this repo's `sidecar/` venv; the packaged
+  Release build is self-contained.
 
 ## Legal
 
