@@ -69,6 +69,7 @@ struct PosterImage: View {
 /// Reusable responsive grid of poster tiles that pushes DetailView on tap.
 struct PosterGrid: View {
     let items: [CatalogueItem]
+    @EnvironmentObject var state: AppState
     private let columns = [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 18)]
 
     var body: some View {
@@ -78,6 +79,13 @@ struct PosterGrid: View {
                     PosterCard(item: item)
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    let saved = state.bookmarks.isBookmarked(item)
+                    Button { state.bookmarks.toggle(item) } label: {
+                        Label(saved ? "Remove from Watch Later" : "Add to Watch Later",
+                              systemImage: saved ? "star.slash" : "star")
+                    }
+                }
             }
         }
         .padding(20)

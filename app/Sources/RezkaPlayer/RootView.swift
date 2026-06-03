@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
-    case home, films, series, cartoons, animation, search, downloads
+    case home, films, series, cartoons, animation, search, watchLater, downloads
 
     var id: String { rawValue }
     var title: String {
@@ -12,6 +12,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
         case .cartoons: return "Cartoons"
         case .animation: return "Anime"
         case .search: return "Search"
+        case .watchLater: return "Watch Later"
         case .downloads: return "Downloads"
         }
     }
@@ -23,6 +24,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
         case .cartoons: return "teddybear"
         case .animation: return "sparkles"
         case .search: return "magnifyingglass"
+        case .watchLater: return "star"
         case .downloads: return "arrow.down.circle"
         }
     }
@@ -81,6 +83,8 @@ struct RootView: View {
             CatalogueView(mode: .category(selection.category!, title: selection.title))
         case .search:
             SearchView()
+        case .watchLater:
+            WatchLaterView()
         case .downloads:
             DownloadsView()
         }

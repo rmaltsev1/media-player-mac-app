@@ -1,0 +1,43 @@
+name: Release
+
+# Tagging a version (e.g. `git tag v0.1.1 && git push origin v0.1.1`) builds the
+# self-contained DMG and publishes it as a GitHub Release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:   # also runnable manually from the Actions tab
+
+permissions:
+  contents: write       # needed to create the Release and upload the asset
+
+jobs:
+  build:
+    runs-on: macos-15   # Apple Silicon runner (matches the arm64 build)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build DMG
+        run: ./scripts/package.sh
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/RezkaPlayer.dmg
+          name: RezkaPlayer ${{ github.ref_name }}
+          fail_on_unmatched_files: true
+          body: |
+            Self-contained **Apple Silicon** build (ad-hoc signed, not notarized).
+
+            **Install:** open the DMG → drag RezkaPlayer to Applications → first launch only,
+            right-click RezkaPlayer → **Open**. If macOS still blocks it:
+            `xattr -dr com.apple.quarantine /Applications/RezkaPlayer.app`
+
+            Streaming may need a VPN/proxy where HDRezka is geo-blocked (see app Settings).

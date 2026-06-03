@@ -15,6 +15,7 @@ final class AppState: ObservableObject {
 
     let sidecar = SidecarManager()
     let downloads = DownloadManager()
+    let bookmarks = BookmarkStore()
     lazy var api = APIClient(sidecar: sidecar) { [weak self] in
         self?.origin ?? "https://hdrezka.ag"
     }
@@ -31,6 +32,9 @@ final class AppState: ObservableObject {
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
         downloads.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        bookmarks.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
 

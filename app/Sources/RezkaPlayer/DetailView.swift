@@ -37,6 +37,16 @@ struct DetailView: View {
             }
         }
         .navigationTitle(info?.name ?? item.title)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                let saved = state.bookmarks.isBookmarked(item)
+                Button { state.bookmarks.toggle(item) } label: {
+                    Label(saved ? "In Watch Later" : "Watch Later",
+                          systemImage: saved ? "star.fill" : "star")
+                }
+                .help(saved ? "Remove from Watch Later" : "Add to Watch Later")
+            }
+        }
         .task { await loadInfo() }
     }
 
