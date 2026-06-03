@@ -163,6 +163,23 @@ struct PlayerView: View {
         state.progress.markFinished(id: currentKey())
         state.watched.mark(url: target.pageURL ?? target.urlString,
                            title: target.title, posterURL: target.posterURL)
+
+        // Best-effort Trakt scrobble for the just-finished item (uses the live season/episode
+        // so it stays correct across autoplay). Fire-and-forget; never disturbs autoplay.
+        if state.traktConnected {
+            let trakt = state.trakt
+            let isSeries = target.isSeries
+            let original = target.originalTitle
+            let title = target.title
+            let year = target.year
+            let season = curSeason
+            let episode = curEpisode
+            Task.detached {
+                await trakt.markWatched(originalTitle: original, title: title, year: year,
+                                        isSeries: isSeries, season: season, episode: episode)
+            }
+        }
+
         autoplayNextIfPossible()
     }
 

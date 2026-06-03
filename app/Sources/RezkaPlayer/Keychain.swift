@@ -6,6 +6,10 @@ import Security
 enum Keychain {
     static let service = "com.rezkaplayer.RezkaPlayer"
     static let cookiesAccount = "hdrezka-cookies"
+    /// Trakt OAuth tokens (JSON {access, refresh, expiresAt}).
+    static let traktTokensAccount = "trakt-tokens"
+    /// Trakt API app client secret.
+    static let traktSecretAccount = "trakt-secret"
 
     /// Save (insert or replace) a String for the given account.
     @discardableResult

@@ -24,6 +24,40 @@ final class AppState: ObservableObject {
         didSet { objectWillChange.send() }
     }
 
+    /// Trakt.tv API app client id (user-supplied; the secret lives in the Keychain).
+    @AppStorage("traktClientID") var traktClientID: String = "" {
+        didSet { objectWillChange.send() }
+    }
+
+    // MARK: Trakt.tv
+
+    /// Connection/status state for the Trakt integration, surfaced to Settings.
+    @Published var traktConnected: Bool = false
+    @Published var traktUsername: String = ""
+    /// Transient status shown while the device flow is running ("", "Waiting…", error, etc.).
+    @Published var traktStatus: String = ""
+    /// The pending device-flow code to display (user_code + verification_url), if any.
+    @Published var traktPendingCode: TraktClient.DeviceCode?
+
+    /// REST client for Trakt (pure Swift; does NOT use the sidecar).
+    lazy var trakt = TraktClient { [weak self] in
+        self?.traktClientID ?? ""
+    } clientSecretProvider: { [weak self] in
+        self?.traktClientSecret ?? ""
+    }
+
+    /// The Trakt client secret, stored in the Keychain (never in UserDefaults).
+    var traktClientSecret: String {
+        get { Keychain.load(account: Keychain.traktSecretAccount) ?? "" }
+        set {
+            if newValue.isEmpty { Keychain.delete(account: Keychain.traktSecretAccount) }
+            else { Keychain.save(newValue, account: Keychain.traktSecretAccount) }
+            objectWillChange.send()
+        }
+    }
+
+    private var traktPollTask: Task<Void, Never>?
+
     /// HDRezka session cookies (empty when logged out). Sent on every sidecar request
     /// so premium translations / higher resolutions are available.
     @Published var cookies: [String: String] = [:]
@@ -89,6 +123,9 @@ final class AppState: ObservableObject {
         NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
             .sink { [weak self] _ in self?.sidecar.stop() }
             .store(in: &cancellables)
+
+        // Restore a previously connected Trakt session (tokens live in the Keychain).
+        Task { await refreshTraktConnection() }
     }
 
     func boot() {
@@ -128,6 +165,60 @@ final class AppState: ObservableObject {
         cookies = [:]
         loggedInEmail = ""
         Keychain.delete(account: Keychain.cookiesAccount)
+    }
+
+    // MARK: Trakt account
+
+    /// Sync `traktConnected`/`traktUsername` from the client's stored tokens.
+    func refreshTraktConnection() async {
+        let connected = await trakt.hasTokens
+        let name = connected ? (await trakt.username()) : nil
+        traktConnected = connected
+        traktUsername = name ?? ""
+    }
+
+    /// Start the OAuth device flow: fetch a code to show the user, then poll until authorized.
+    func traktConnect() {
+        traktPollTask?.cancel()
+        traktStatus = "Requesting code…"
+        traktPendingCode = nil
+        traktPollTask = Task {
+            do {
+                let code = try await trakt.requestDeviceCode()
+                traktPendingCode = code
+                traktStatus = "Waiting for you to authorize on trakt.tv…"
+                try await trakt.pollForToken(code)
+                traktPendingCode = nil
+                traktStatus = ""
+                await refreshTraktConnection()
+            } catch is CancellationError {
+                traktPendingCode = nil
+                traktStatus = ""
+            } catch let e as TraktClient.TraktError {
+                traktPendingCode = nil
+                switch e {
+                case .notConfigured: traktStatus = "Enter your Trakt client ID and secret first."
+                case .denied: traktStatus = "Authorization was denied."
+                case .expired: traktStatus = "The code expired. Try Connect again."
+                case .http(let c): traktStatus = "Trakt error (HTTP \(c))."
+                case .transport(let m): traktStatus = m
+                }
+            } catch {
+                traktPendingCode = nil
+                traktStatus = error.localizedDescription
+            }
+        }
+    }
+
+    /// Disconnect from Trakt (clears the stored tokens; keeps the entered credentials).
+    func traktDisconnect() {
+        traktPollTask?.cancel(); traktPollTask = nil
+        Task {
+            await trakt.clearTokens()
+            traktPendingCode = nil
+            traktStatus = ""
+            await refreshTraktConnection()
+        }
     }
 
     /// Send the current proxy setting to the sidecar (applies to all its traffic + the relay).

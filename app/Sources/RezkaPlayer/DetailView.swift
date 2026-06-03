@@ -40,7 +40,23 @@ struct DetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 let saved = state.bookmarks.isBookmarked(item)
-                Button { state.bookmarks.toggle(item) } label: {
+                Button {
+                    let wasSaved = saved
+                    state.bookmarks.toggle(item)
+                    // When adding to Watch Later and Trakt is connected, mirror to the
+                    // Trakt watchlist (best-effort, unobtrusive).
+                    if !wasSaved, state.traktConnected {
+                        let trakt = state.trakt
+                        let original = info?.origName
+                        let title = info?.name ?? item.title
+                        let year = info?.releaseYear
+                        let isSeries = info?.isSeries == true
+                        Task.detached {
+                            await trakt.addToWatchlist(originalTitle: original, title: title,
+                                                       year: year, isSeries: isSeries)
+                        }
+                    }
+                } label: {
                     Label(saved ? "In Watch Later" : "Watch Later",
                           systemImage: saved ? "star.fill" : "star")
                 }
@@ -273,7 +289,8 @@ struct DetailView: View {
             pageURL: item.url, season: s, episode: e,
             translatorId: translatorID, quality: q,
             episodeList: epList, posterURL: info?.thumbnail ?? item.image,
-            resumeAt: resume)
+            resumeAt: resume,
+            originalTitle: info?.origName, year: info?.releaseYear)
     }
 
     /// Episode numbers of the currently selected season (for autoplay), or nil for movies.

@@ -14,6 +14,9 @@ struct SettingsView: View {
     @State private var loggingIn = false
     @State private var loginError: String?
 
+    // Trakt credentials (client id is bound to AppStorage; secret lives in the Keychain).
+    @State private var traktSecretField: String = ""
+
     var body: some View {
         Form {
             Section("HDRezka account") {
@@ -77,6 +80,60 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Trakt") {
+                if state.traktConnected {
+                    LabeledContent("Account") {
+                        Text(state.traktUsername.isEmpty ? "Connected"
+                             : "Connected as \(state.traktUsername)")
+                            .foregroundStyle(.secondary)
+                    }
+                    Button("Disconnect", role: .destructive) { state.traktDisconnect() }
+                    Text("Finished movies/episodes are marked watched on Trakt, and Watch Later "
+                         + "additions are mirrored to your Trakt watchlist.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    TextField("Client ID", text: $state.traktClientID,
+                              prompt: Text("from your Trakt API app"))
+                        .textFieldStyle(.roundedBorder)
+                    SecureField("Client Secret", text: $traktSecretField)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: traktSecretField) { _, v in state.traktClientSecret = v }
+
+                    if let code = state.traktPendingCode {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Enter this code on trakt.tv:")
+                                .font(.caption).foregroundStyle(.secondary)
+                            Text(code.user_code)
+                                .font(.system(.title2, design: .monospaced)).bold()
+                                .textSelection(.enabled)
+                            Button {
+                                if let url = URL(string: code.verification_url) {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            } label: {
+                                Label("Open trakt.tv to authorize", systemImage: "safari")
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        Button("Connect") { state.traktConnect() }
+                            .disabled(state.traktClientID.trimmingCharacters(in: .whitespaces).isEmpty
+                                      || traktSecretField.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+
+                    if !state.traktStatus.isEmpty {
+                        HStack(spacing: 6) {
+                            if state.traktPendingCode != nil { ProgressView().controlSize(.small) }
+                            Text(state.traktStatus).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Text("Create a free API app at trakt.tv/oauth/applications (use urn:ietf:wg:"
+                         + "oauth:2.0:oob as the redirect URI), then paste its Client ID and Secret "
+                         + "here. The secret is stored in the macOS Keychain.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
             Section("Python helper") {
                 LabeledContent("Status") { Text(statusText).foregroundStyle(.secondary) }
                 TextField("Sidecar folder", text: $sidecarDir).textFieldStyle(.roundedBorder)
@@ -91,7 +148,10 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
-        .onAppear { originField = state.origin }
+        .onAppear {
+            originField = state.origin
+            traktSecretField = state.traktClientSecret
+        }
     }
 
     private func logIn() {

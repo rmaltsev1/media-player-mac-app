@@ -58,6 +58,14 @@ struct PlayerTarget: Hashable {
     var episodeList: [Int]? = nil
     var posterURL: String? = nil
     var resumeAt: Double = 0
+
+    // Trakt scrobble context: the original (non-localized) title + release year match
+    // Trakt's catalogue far better than the Russian display title.
+    var originalTitle: String? = nil
+    var year: Int? = nil
+
+    /// Whether this target is a series (true when a season/episode is set).
+    var isSeries: Bool { season != nil || episode != nil }
 }
 
 struct RootView: View {
