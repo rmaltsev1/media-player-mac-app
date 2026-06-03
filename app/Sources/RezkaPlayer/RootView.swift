@@ -46,6 +46,16 @@ struct PlayerTarget: Hashable {
     let urlString: String
     let isLocal: Bool
     var subtitleURL: String? = nil
+
+    // Progress / resume / autoplay context (defaults keep existing call sites compiling).
+    var pageURL: String? = nil
+    var season: Int? = nil
+    var episode: Int? = nil
+    var translatorId: Int? = nil
+    var quality: String? = nil
+    var episodeList: [Int]? = nil
+    var posterURL: String? = nil
+    var resumeAt: Double = 0
 }
 
 struct RootView: View {

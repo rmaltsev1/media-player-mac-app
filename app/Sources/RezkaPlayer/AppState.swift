@@ -13,6 +13,11 @@ final class AppState: ObservableObject {
         didSet { objectWillChange.send() }
     }
 
+    /// Globally preferred playback resolution (e.g. "1080p"); "" == auto (best available).
+    @AppStorage("preferredQuality") var preferredQuality: String = "" {
+        didSet { objectWillChange.send() }
+    }
+
     /// HDRezka session cookies (empty when logged out). Sent on every sidecar request
     /// so premium translations / higher resolutions are available.
     @Published var cookies: [String: String] = [:]
@@ -24,6 +29,8 @@ final class AppState: ObservableObject {
     let sidecar = SidecarManager()
     let downloads = DownloadManager()
     let bookmarks = BookmarkStore()
+    let progress = ProgressStore()
+    let prefs = PreferenceStore()
     lazy var api = APIClient(sidecar: sidecar) { [weak self] in
         self?.origin ?? "https://hdrezka.ag"
     } cookiesProvider: { [weak self] in
@@ -52,6 +59,12 @@ final class AppState: ObservableObject {
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
         bookmarks.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        progress.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        prefs.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
 

@@ -88,18 +88,11 @@ struct CatalogueView: View {
 
     var body: some View {
         ScrollView {
-            if loading && items.isEmpty {
-                CenteredMessage(systemImage: "hourglass", title: "Loading…")
-                    .frame(minHeight: 400)
-            } else if let error, items.isEmpty {
-                CenteredMessage(systemImage: "exclamationmark.triangle",
-                                title: "Couldn't load", subtitle: error)
-                    .frame(minHeight: 400)
-            } else if items.isEmpty {
-                CenteredMessage(systemImage: "film", title: "Nothing here yet")
-                    .frame(minHeight: 400)
-            } else {
-                PosterGrid(items: items)
+            VStack(alignment: .leading, spacing: 0) {
+                if isHome, !continueItems.isEmpty {
+                    continueWatchingSection
+                }
+                mainContent
             }
         }
         .navigationTitle(mode.title)
@@ -141,6 +134,55 @@ struct CatalogueView: View {
         .onChange(of: state.sidecar.state) { _, new in
             if case .ready = new, items.isEmpty { Task { await load() } }
         }
+    }
+
+    @ViewBuilder private var mainContent: some View {
+        if loading && items.isEmpty {
+            CenteredMessage(systemImage: "hourglass", title: "Loading…")
+                .frame(minHeight: 400)
+        } else if let error, items.isEmpty {
+            CenteredMessage(systemImage: "exclamationmark.triangle",
+                            title: "Couldn't load", subtitle: error)
+                .frame(minHeight: 400)
+        } else if items.isEmpty {
+            CenteredMessage(systemImage: "film", title: "Nothing here yet")
+                .frame(minHeight: 400)
+        } else {
+            PosterGrid(items: items)
+        }
+    }
+
+    /// In-progress titles (one tile per title, most-recent first) for the Home "Continue Watching" row.
+    private var continueItems: [CatalogueItem] {
+        var seen = Set<String>()
+        var out: [CatalogueItem] = []
+        for e in state.progress.recent() where !seen.contains(e.pageURL) {
+            seen.insert(e.pageURL)
+            out.append(CatalogueItem(
+                title: e.title, url: e.pageURL, image: e.posterURL,
+                rating: nil, category: nil,
+                info: e.season.flatMap { s in e.episode.map { "S\(s)E\($0)" } },
+                postId: nil))
+        }
+        return out
+    }
+
+    @ViewBuilder private var continueWatchingSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Continue Watching").font(.title3).bold()
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 16) {
+                    ForEach(continueItems) { item in
+                        NavigationLink(value: item) {
+                            PosterCard(item: item).frame(width: 150)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.bottom, 4)
+            }
+        }
+        .padding(.horizontal, 20).padding(.top, 16)
     }
 
     private var isHome: Bool { mode == .home }

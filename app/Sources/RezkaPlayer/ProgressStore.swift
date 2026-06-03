@@ -1,0 +1,121 @@
+import Foundation
+import Combine
+
+/// Per-title playback progress ("Continue Watching" + resume position), persisted to
+/// Application Support/RezkaPlayer/progress.json.
+@MainActor
+final class ProgressStore: ObservableObject {
+    struct Entry: Codable, Identifiable, Hashable {
+        let id: String          // stable key (see ProgressStore.key)
+        var title: String
+        var pageURL: String
+        var posterURL: String?
+        var season: Int?
+        var episode: Int?
+        var translatorId: Int?
+        var quality: String?
+        var position: Double    // seconds
+        var duration: Double    // seconds
+        var updatedAt: Date
+        var finished: Bool
+    }
+
+    @Published private(set) var items: [Entry] = []
+    private let fm = FileManager.default
+    private let cap = 50
+
+    init() { load() }
+
+    // MARK: Key helper
+
+    /// Stable key: the page URL for movies, or "pageURL#S{season}E{episode}" for series.
+    static func key(pageURL: String, season: Int?, episode: Int?) -> String {
+        if let s = season, let e = episode { return "\(pageURL)#S\(s)E\(e)" }
+        return pageURL
+    }
+
+    // MARK: Public API
+
+    /// Insert or update an entry by id, refreshing updatedAt. Drops oldest beyond the cap.
+    func record(id: String, title: String, pageURL: String, posterURL: String?,
+                season: Int?, episode: Int?, translatorId: Int?, quality: String?,
+                position: Double, duration: Double, finished: Bool = false) {
+        if let idx = items.firstIndex(where: { $0.id == id }) {
+            var e = items[idx]
+            e.title = title
+            e.pageURL = pageURL
+            e.posterURL = posterURL ?? e.posterURL
+            e.season = season
+            e.episode = episode
+            e.translatorId = translatorId ?? e.translatorId
+            e.quality = quality ?? e.quality
+            e.position = position
+            e.duration = duration
+            e.updatedAt = Date()
+            if finished { e.finished = true }
+            items[idx] = e
+        } else {
+            items.append(Entry(
+                id: id, title: title, pageURL: pageURL, posterURL: posterURL,
+                season: season, episode: episode, translatorId: translatorId,
+                quality: quality, position: position, duration: duration,
+                updatedAt: Date(), finished: finished))
+        }
+        // Cap: keep the most-recently-updated `cap` entries.
+        if items.count > cap {
+            items.sort { $0.updatedAt > $1.updatedAt }
+            items.removeLast(items.count - cap)
+        }
+        save()
+    }
+
+    func entry(id: String) -> Entry? { items.first { $0.id == id } }
+
+    /// Resumable, recently-watched entries (unfinished, meaningfully started), newest first.
+    func recent(limit: Int = 30) -> [Entry] {
+        items.filter { !$0.finished && $0.position > 30 }
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .prefix(limit)
+            .map { $0 }
+    }
+
+    /// Most recent entry (finished or not) for a given page URL, used to recall last prefs.
+    func latestForPage(_ pageURL: String) -> Entry? {
+        items.filter { $0.pageURL == pageURL }
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .first
+    }
+
+    func markFinished(id: String) {
+        guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        items[idx].finished = true
+        items[idx].updatedAt = Date()
+        save()
+    }
+
+    func remove(id: String) {
+        items.removeAll { $0.id == id }
+        save()
+    }
+
+    // MARK: Persistence
+
+    private var file: URL {
+        let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("RezkaPlayer", isDirectory: true)
+        try? fm.createDirectory(at: base, withIntermediateDirectories: true)
+        return base.appendingPathComponent("progress.json")
+    }
+
+    private func load() {
+        guard let data = try? Data(contentsOf: file),
+              let decoded = try? JSONDecoder().decode([Entry].self, from: data) else { return }
+        items = decoded
+    }
+
+    private func save() {
+        if let data = try? JSONEncoder().encode(items) {
+            try? data.write(to: file, options: .atomic)
+        }
+    }
+}

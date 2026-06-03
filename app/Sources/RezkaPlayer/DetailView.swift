@@ -153,7 +153,11 @@ struct DetailView: View {
         if !translators.isEmpty {
             Picker("Translation", selection: Binding(
                 get: { translatorID ?? translators.first?.id },
-                set: { translatorID = $0; Task { await refetch() } })
+                set: { newValue in
+                    translatorID = newValue
+                    if let tid = newValue { state.prefs.setTranslator(tid, for: item.url) }
+                    Task { await refetch() }
+                })
             ) {
                 ForEach(translators) { t in
                     Text(t.premium ? "\(t.name) ★" : t.name).tag(Optional(t.id))
@@ -167,7 +171,7 @@ struct DetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Picker("Resolution", selection: Binding(
                 get: { quality ?? stream.sortedQualities.last ?? "" },
-                set: { quality = $0 })
+                set: { quality = $0; state.preferredQuality = $0 })
             ) {
                 ForEach(stream.sortedQualities, id: \.self) { q in Text(q).tag(q) }
             }
@@ -176,8 +180,10 @@ struct DetailView: View {
 
             HStack(spacing: 12) {
                 if let target = playerTarget(stream) {
+                    let resuming = resumePosition > 5
                     NavigationLink(value: target) {
-                        Label("Play", systemImage: "play.fill").frame(width: 120)
+                        Label(resuming ? "Resume" : "Play",
+                              systemImage: resuming ? "play.circle" : "play.fill").frame(width: 120)
                     }
                     .buttonStyle(.borderedProminent)
                 }
@@ -243,8 +249,37 @@ struct DetailView: View {
 
     private func playerTarget(_ stream: StreamResponse) -> PlayerTarget? {
         guard let q = currentQuality(stream), let url = stream.url(for: q) else { return nil }
-        return PlayerTarget(title: titleForPlayback(), urlString: url, isLocal: false,
-                            subtitleURL: stream.subtitles.first?.link)
+        let isSeries = info?.isSeries == true
+        let s = isSeries ? seasonID : nil
+        let e = isSeries ? episodeID : nil
+        let epList: [Int]? = isSeries ? selectedSeasonEpisodes() : nil
+        let key = ProgressStore.key(pageURL: item.url, season: s, episode: e)
+        let saved = state.progress.entry(id: key)
+        let resume = (saved?.finished == false) ? (saved?.position ?? 0) : 0
+        return PlayerTarget(
+            title: titleForPlayback(), urlString: url, isLocal: false,
+            subtitleURL: stream.subtitles.first?.link,
+            pageURL: item.url, season: s, episode: e,
+            translatorId: translatorID, quality: q,
+            episodeList: epList, posterURL: info?.thumbnail ?? item.image,
+            resumeAt: resume)
+    }
+
+    /// Episode numbers of the currently selected season (for autoplay), or nil for movies.
+    private func selectedSeasonEpisodes() -> [Int]? {
+        guard info?.isSeries == true, let seasons = info?.episodes else { return nil }
+        let sid = seasonID ?? seasons.first?.season
+        return seasons.first { $0.season == sid }?.episodes.map { $0.episode }
+    }
+
+    /// Resume position (>5s, unfinished) for the current selection, used to label the Play button.
+    private var resumePosition: Double {
+        let isSeries = info?.isSeries == true
+        let key = ProgressStore.key(pageURL: item.url,
+                                    season: isSeries ? seasonID : nil,
+                                    episode: isSeries ? episodeID : nil)
+        guard let e = state.progress.entry(id: key), !e.finished else { return 0 }
+        return e.position
     }
 
     private func titleForPlayback() -> String {
@@ -273,6 +308,12 @@ struct DetailView: View {
             if info.isSeries {
                 seasonID = info.episodes?.first?.season
                 episodeID = info.episodes?.first?.episodes.first?.episode
+            }
+            // Apply the remembered translator for this title as an initial default, but only
+            // if it's valid for the current movie/episode (refetch() re-validates regardless).
+            if let remembered = state.prefs.translator(for: item.url),
+               availableTranslators(info).contains(where: { $0.id == remembered }) {
+                translatorID = remembered
             }
             await refetch()
         } catch {
@@ -312,8 +353,15 @@ struct DetailView: View {
                                                season: reqSeason, episode: reqEpisode)
             guard streamRequestID == myID else { return }   // a newer request superseded us
             stream = s
-            // Preserve the chosen resolution if it still exists, else pick the best.
-            if let q = quality, s.videos[q] != nil { } else { quality = s.sortedQualities.last }
+            // Resolution: keep the chosen one if still available; otherwise honour the
+            // globally preferred resolution when this stream offers it, else the best.
+            if let q = quality, s.videos[q] != nil {
+                // keep current selection
+            } else if !state.preferredQuality.isEmpty, s.videos[state.preferredQuality] != nil {
+                quality = state.preferredQuality
+            } else {
+                quality = s.sortedQualities.last
+            }
         } catch {
             guard streamRequestID == myID else { return }
             streamError = (error as? APIError)?.errorDescription ?? error.localizedDescription
