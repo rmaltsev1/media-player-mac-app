@@ -40,7 +40,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from hdrezka.api import HdRezkaApi
 from hdrezka.search import HdRezkaSearch
 from hdrezka.types import TVSeries, Movie, default_headers
-from browse import Browse, CATEGORIES, COLLECTIONS
+from hdrezka.errors import LoginFailed
+from browse import Browse, CATEGORIES, COLLECTIONS, GENRES, SORTS, parse_similar
 
 __version__ = "0.2.0"
 AUTH_TOKEN = os.environ.get("REZKA_SIDECAR_TOKEN")
@@ -122,8 +123,12 @@ def make_api(body):
 # ---------- endpoint handlers ----------
 
 def h_health(_body):
+    # Expose genres + sort options so the app can populate its filter menus.
+    genres = {cat: [{"slug": slug, "label": label} for slug, label in items]
+              for cat, items in GENRES.items()}
     return {"ok": True, "version": __version__,
             "categories": CATEGORIES, "collections": list(COLLECTIONS.keys()),
+            "genres": genres, "sorts": SORTS,
             "proxy": bool(PROXY)}
 
 
@@ -166,6 +171,9 @@ def h_browse(body):
         collection=body.get("collection", "best"),
         category=body.get("category", "films"),
         page=int(body.get("page", 1)),
+        genre=body.get("genre"),
+        year=body.get("year"),
+        sort=body.get("sort"),
     )
     for it in items:
         it["url"] = abs_url(origin, it.get("url"))
@@ -198,6 +206,11 @@ def h_info(body):
         ],
         "otherParts": _safe(lambda: api.otherParts) or [],
     }
+    # Related/similar titles from the detail page (same shape as catalogue items).
+    similar = _safe(lambda: parse_similar(api.soup)) or []
+    for it in similar:
+        it["url"] = abs_url(api.origin, it.get("url"))
+    data["similar"] = similar
     if api.type == TVSeries:
         # episodesInfo: [{season, season_text, episodes:[{episode, episode_text, translations:[...]}]}]
         data["episodes"] = _safe(lambda: api.episodesInfo) or []
@@ -231,6 +244,24 @@ def h_stream(body):
     }
 
 
+def h_login(body):
+    """Log into HDRezka. Body: {origin, email, password}.
+    On success returns {ok:true, cookies:{..}} (the dle_user_id/dle_password session
+    cookies to send on subsequent requests); on failure {ok:false, message:..}."""
+    origin = body["origin"]
+    email = body.get("email") or ""
+    password = body.get("password") or ""
+    api = HdRezkaApi(origin, proxy=proxy_for(body),
+                     cookies=body.get("cookies") or {})
+    try:
+        api.login(email, password)   # merges session cookies into api.cookies on success
+    except LoginFailed as e:
+        return {"ok": False, "message": str(e) or "Login failed"}
+    except Exception as e:
+        return {"ok": False, "message": str(e) or "Login failed"}
+    return {"ok": True, "cookies": api.cookies}
+
+
 def _safe(fn, default=None):
     try:
         return fn()
@@ -244,6 +275,7 @@ ROUTES = {
     "/browse": h_browse,
     "/info": h_info,
     "/stream": h_stream,
+    "/login": h_login,
 }
 
 # Headers a browser sends to HDRezka's CDN; some edges require a UA/Referer.

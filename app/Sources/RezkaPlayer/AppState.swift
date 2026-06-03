@@ -13,11 +13,21 @@ final class AppState: ObservableObject {
         didSet { objectWillChange.send() }
     }
 
+    /// HDRezka session cookies (empty when logged out). Sent on every sidecar request
+    /// so premium translations / higher resolutions are available.
+    @Published var cookies: [String: String] = [:]
+    /// Email of the currently logged-in account (empty when logged out).
+    @AppStorage("hdrezkaEmail") var loggedInEmail: String = ""
+
+    var isLoggedIn: Bool { !cookies.isEmpty }
+
     let sidecar = SidecarManager()
     let downloads = DownloadManager()
     let bookmarks = BookmarkStore()
     lazy var api = APIClient(sidecar: sidecar) { [weak self] in
         self?.origin ?? "https://hdrezka.ag"
+    } cookiesProvider: { [weak self] in
+        self?.cookies ?? [:]
     }
 
     private var cancellables = Set<AnyCancellable>()
@@ -27,6 +37,13 @@ final class AppState: ObservableObject {
     }
 
     init() {
+        // Restore a previously saved HDRezka session from the keychain.
+        if let json = Keychain.load(account: Keychain.cookiesAccount),
+           let data = json.data(using: .utf8),
+           let saved = try? JSONDecoder().decode([String: String].self, from: data) {
+            cookies = saved
+        }
+
         // Re-publish sidecar state changes so views observing AppState refresh.
         sidecar.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
@@ -52,6 +69,30 @@ final class AppState: ObservableObject {
     }
 
     func boot() { sidecar.start() }
+
+    // MARK: HDRezka account
+
+    /// Log in via the sidecar; on success persist the session cookies to the keychain
+    /// so they flow on all subsequent requests. Throws on failure with a usable message.
+    func login(email: String, password: String) async throws {
+        let resp = try await api.login(origin: origin, email: email, password: password)
+        guard resp.ok, let c = resp.cookies, !c.isEmpty else {
+            throw APIError.server(resp.message ?? "Login failed", type: nil)
+        }
+        cookies = c
+        loggedInEmail = email
+        if let data = try? JSONEncoder().encode(c),
+           let json = String(data: data, encoding: .utf8) {
+            Keychain.save(json, account: Keychain.cookiesAccount)
+        }
+    }
+
+    /// Clear the stored session (cookies + saved email).
+    func logout() {
+        cookies = [:]
+        loggedInEmail = ""
+        Keychain.delete(account: Keychain.cookiesAccount)
+    }
 
     /// Send the current proxy setting to the sidecar (applies to all its traffic + the relay).
     func pushProxyConfig() {

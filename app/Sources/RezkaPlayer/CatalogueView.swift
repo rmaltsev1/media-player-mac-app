@@ -1,5 +1,48 @@
 import SwiftUI
 
+/// Genre slugs/labels mirrored from the sidecar's `browse.GENRES` so the catalogue can
+/// populate its Genre menu without a round-trip. Keep in sync with browse.py.
+enum CatalogueGenres {
+    struct Genre: Hashable { let slug: String; let label: String }
+
+    static let shared: [Genre] = [
+        .init(slug: "comedy", label: "Comedy"),
+        .init(slug: "drama", label: "Drama"),
+        .init(slug: "melodrama", label: "Melodrama"),
+        .init(slug: "thriller", label: "Thriller"),
+        .init(slug: "horror", label: "Horror"),
+        .init(slug: "boevik", label: "Action"),
+        .init(slug: "fantastika", label: "Sci-Fi"),
+        .init(slug: "fjentezi", label: "Fantasy"),
+        .init(slug: "detektiv", label: "Detective"),
+        .init(slug: "priklyucheniya", label: "Adventure"),
+        .init(slug: "kriminal", label: "Crime"),
+        .init(slug: "military", label: "War"),
+        .init(slug: "istoricheskiy", label: "History"),
+        .init(slug: "semeyniy", label: "Family"),
+        .init(slug: "western", label: "Western"),
+        .init(slug: "biographicheskiy", label: "Biography"),
+        .init(slug: "arthouse", label: "Arthouse"),
+    ]
+
+    static let animation: [Genre] = [
+        .init(slug: "anime", label: "Anime"),
+        .init(slug: "comedy", label: "Comedy"),
+        .init(slug: "drama", label: "Drama"),
+        .init(slug: "melodrama", label: "Melodrama"),
+        .init(slug: "boevik", label: "Action"),
+        .init(slug: "fantastika", label: "Sci-Fi"),
+        .init(slug: "fjentezi", label: "Fantasy"),
+        .init(slug: "priklyucheniya", label: "Adventure"),
+        .init(slug: "detektiv", label: "Detective"),
+        .init(slug: "semeyniy", label: "Family"),
+    ]
+
+    static func forCategory(_ category: String) -> [Genre] {
+        category == "animation" ? animation : shared
+    }
+}
+
 struct CatalogueView: View {
     enum Mode: Equatable {
         case home
@@ -23,9 +66,25 @@ struct CatalogueView: View {
     @EnvironmentObject var state: AppState
 
     @State private var items: [CatalogueItem] = []
-    @State private var collection: String = "best"   // best | latest
+    @State private var sort: String = "best"         // best | last | popular | watching
+    @State private var genre: String = ""            // "" == All
+    @State private var year: Int = 0                 // 0 == All
     @State private var loading = false
     @State private var error: String?
+
+    /// Sort options shown in the picker -> (sidecar sort value, label).
+    private static let sortOptions: [(String, String)] = [
+        ("best", "Top-ranked"),
+        ("last", "Latest"),
+        ("popular", "Popular"),
+        ("watching", "Watching"),
+    ]
+
+    /// Recent years for the Year menu (current year down ~30).
+    private static let years: [Int] = {
+        let now = Calendar.current.component(.year, from: Date())
+        return Array(stride(from: now, through: now - 30, by: -1))
+    }()
 
     var body: some View {
         ScrollView {
@@ -47,12 +106,31 @@ struct CatalogueView: View {
         .toolbar {
             if !isHome {
                 ToolbarItem(placement: .primaryAction) {
-                    Picker("", selection: $collection) {
-                        Text("Top-ranked").tag("best")
-                        Text("Latest").tag("latest")
+                    Picker("Sort", selection: $sort) {
+                        ForEach(Self.sortOptions, id: \.0) { value, label in
+                            Text(label).tag(value)
+                        }
                     }
                     .pickerStyle(.segmented)
                     .fixedSize()
+                }
+                ToolbarItem(placement: .automatic) {
+                    Menu {
+                        Picker("Genre", selection: $genre) {
+                            Text("All genres").tag("")
+                            ForEach(CatalogueGenres.forCategory(mode.category), id: \.slug) { g in
+                                Text(g.label).tag(g.slug)
+                            }
+                        }
+                    } label: { Label(genreLabel, systemImage: "theatermasks") }
+                }
+                ToolbarItem(placement: .automatic) {
+                    Menu {
+                        Picker("Year", selection: $year) {
+                            Text("All years").tag(0)
+                            ForEach(Self.years, id: \.self) { y in Text(String(y)).tag(y) }
+                        }
+                    } label: { Label(year == 0 ? "Any year" : String(year), systemImage: "calendar") }
                 }
             }
             ToolbarItem(placement: .automatic) {
@@ -66,15 +144,34 @@ struct CatalogueView: View {
     }
 
     private var isHome: Bool { mode == .home }
-    private var taskKey: String { "\(mode.category)-\(collection)-\(isHome)" }
+
+    private var genreLabel: String {
+        guard !genre.isEmpty,
+              let g = CatalogueGenres.forCategory(mode.category).first(where: { $0.slug == genre })
+        else { return "All genres" }
+        return g.label
+    }
+
+    private var taskKey: String {
+        "\(mode.category)-\(isHome)-\(sort)-\(genre)-\(year)"
+    }
 
     private func load() async {
         guard case .ready = state.sidecar.state else { return }
         loading = true; error = nil
         defer { loading = false }
         do {
-            let coll = isHome ? "watching" : collection
-            items = try await state.api.browse(collection: coll, category: mode.category)
+            if isHome {
+                items = try await state.api.browse(collection: "watching", category: mode.category)
+            } else {
+                // The sidecar derives the path from `sort`; collection just picks the base.
+                let coll = sort == "last" ? "latest" : "best"
+                items = try await state.api.browse(
+                    collection: coll, category: mode.category,
+                    genre: genre.isEmpty ? nil : genre,
+                    year: year == 0 ? nil : year,
+                    sort: sort)
+            }
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }

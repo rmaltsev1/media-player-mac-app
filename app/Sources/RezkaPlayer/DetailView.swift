@@ -79,10 +79,34 @@ struct DetailView: View {
                 Spacer(minLength: 0)
             }
 
+            if let similar = info.similar, !similar.isEmpty {
+                Divider()
+                similarSection(similar)
+            }
+
             Divider()
             playbackSection(info)
         }
         .padding(24)
+    }
+
+    // MARK: Similar titles
+
+    @ViewBuilder private func similarSection(_ items: [CatalogueItem]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Similar").font(.headline)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 16) {
+                    ForEach(items) { sim in
+                        NavigationLink(value: sim) {
+                            PosterCard(item: sim).frame(width: 140)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.bottom, 4)
+            }
+        }
     }
 
     // MARK: Playback controls

@@ -80,6 +80,7 @@ struct TitleInfo: Codable, Hashable {
     let isSeries: Bool
     var translators: [Translator]
     var episodes: [SeasonInfo]?
+    var similar: [CatalogueItem]?
 }
 
 // MARK: - Streams

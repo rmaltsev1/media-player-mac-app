@@ -5,10 +5,15 @@ final class APIClient {
     private let sidecar: SidecarManager
     /// Returns the currently configured HDRezka mirror origin (e.g. https://hdrezka.ag).
     private let originProvider: @MainActor () -> String
+    /// Returns the current HDRezka session cookies (empty when logged out).
+    private let cookiesProvider: @MainActor () -> [String: String]
 
-    init(sidecar: SidecarManager, originProvider: @escaping @MainActor () -> String) {
+    init(sidecar: SidecarManager,
+         originProvider: @escaping @MainActor () -> String,
+         cookiesProvider: @escaping @MainActor () -> [String: String] = { [:] }) {
         self.sidecar = sidecar
         self.originProvider = originProvider
+        self.cookiesProvider = cookiesProvider
     }
 
     // MARK: Endpoints
@@ -28,14 +33,32 @@ final class APIClient {
         return r.results
     }
 
-    func browse(collection: String, category: String, page: Int = 1) async throws -> [CatalogueItem] {
-        let body: [String: Any] = ["collection": collection, "category": category, "page": page]
+    func browse(collection: String, category: String, page: Int = 1,
+                genre: String? = nil, year: Int? = nil, sort: String? = nil) async throws -> [CatalogueItem] {
+        var body: [String: Any] = ["collection": collection, "category": category, "page": page]
+        if let genre { body["genre"] = genre }
+        if let year { body["year"] = year }
+        if let sort { body["sort"] = sort }
         let r: BrowseResponse = try await post("/browse", body)
         return r.results
     }
 
     func info(url: String) async throws -> TitleInfo {
         try await post("/info", ["url": url])
+    }
+
+    struct LoginResponse: Decodable {
+        let ok: Bool
+        var cookies: [String: String]?
+        var message: String?
+    }
+
+    /// Log into HDRezka. On success the returned `cookies` should be persisted and sent
+    /// on subsequent requests. `origin` overrides the default mirror when provided.
+    func login(origin: String? = nil, email: String, password: String) async throws -> LoginResponse {
+        var body: [String: Any] = ["email": email, "password": password]
+        if let origin { body["origin"] = origin }
+        return try await post("/login", body)
     }
 
     func stream(url: String, translation: Int? = nil, season: Int? = nil, episode: Int? = nil) async throws -> StreamResponse {
@@ -49,13 +72,14 @@ final class APIClient {
     // MARK: Plumbing
 
     private func post<T: Decodable>(_ path: String, _ body: [String: Any]) async throws -> T {
-        let (base, token, origin) = try await MainActor.run { () -> (URL, String, String) in
+        let (base, token, origin, cookies) = try await MainActor.run { () -> (URL, String, String, [String: String]) in
             guard let base = sidecar.baseURL else { throw APIError.notReady }
-            return (base, sidecar.token, originProvider())
+            return (base, sidecar.token, originProvider(), cookiesProvider())
         }
 
         var payload = body
-        payload["origin"] = origin
+        if payload["origin"] == nil { payload["origin"] = origin }
+        if payload["cookies"] == nil, !cookies.isEmpty { payload["cookies"] = cookies }
 
         var req = URLRequest(url: base.appendingPathComponent(String(path.dropFirst())))
         req.httpMethod = "POST"

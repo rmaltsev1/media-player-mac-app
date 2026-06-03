@@ -8,8 +8,45 @@ struct SettingsView: View {
 
     @State private var originField: String = ""
 
+    // HDRezka login
+    @State private var email: String = ""
+    @State private var password: String = ""
+    @State private var loggingIn = false
+    @State private var loginError: String?
+
     var body: some View {
         Form {
+            Section("HDRezka account") {
+                if state.isLoggedIn {
+                    LabeledContent("Account") {
+                        Text(state.loggedInEmail.isEmpty ? "Logged in" : state.loggedInEmail)
+                            .foregroundStyle(.secondary)
+                    }
+                    Button("Log out", role: .destructive) { state.logout() }
+                    Text("Logging in enables premium translations and higher resolutions where your account allows.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    TextField("Email", text: $email, prompt: Text("you@example.com"))
+                        .textFieldStyle(.roundedBorder)
+                        .textContentType(.username)
+                    SecureField("Password", text: $password)
+                        .textFieldStyle(.roundedBorder)
+                        .textContentType(.password)
+                    HStack {
+                        Button("Log in") { logIn() }
+                            .disabled(loggingIn || email.isEmpty || password.isEmpty)
+                        if loggingIn { ProgressView().controlSize(.small) }
+                        Spacer()
+                    }
+                    if let loginError {
+                        Label(loginError, systemImage: "exclamationmark.triangle")
+                            .font(.caption).foregroundStyle(.orange)
+                    }
+                    Text("Your session cookies are stored in the macOS Keychain and sent to HDRezka only.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
             Section("HDRezka mirror") {
                 TextField("Domain", text: $originField, prompt: Text("https://hdrezka.ag"))
                     .textFieldStyle(.roundedBorder)
@@ -55,6 +92,19 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .padding()
         .onAppear { originField = state.origin }
+    }
+
+    private func logIn() {
+        loggingIn = true; loginError = nil
+        Task {
+            defer { loggingIn = false }
+            do {
+                try await state.login(email: email, password: password)
+                password = ""
+            } catch {
+                loginError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            }
+        }
     }
 
     private func normalized(_ s: String) -> String {
