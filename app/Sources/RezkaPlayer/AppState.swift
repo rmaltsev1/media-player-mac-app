@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import UserNotifications
 
 @MainActor
 final class AppState: ObservableObject {
@@ -18,6 +19,11 @@ final class AppState: ObservableObject {
         didSet { objectWillChange.send() }
     }
 
+    /// When on, watched titles are filtered out of catalogue/search grids.
+    @AppStorage("hideWatched") var hideWatched: Bool = false {
+        didSet { objectWillChange.send() }
+    }
+
     /// HDRezka session cookies (empty when logged out). Sent on every sidecar request
     /// so premium translations / higher resolutions are available.
     @Published var cookies: [String: String] = [:]
@@ -30,6 +36,7 @@ final class AppState: ObservableObject {
     let downloads = DownloadManager()
     let bookmarks = BookmarkStore()
     let progress = ProgressStore()
+    let watched = WatchedStore()
     let prefs = PreferenceStore()
     lazy var api = APIClient(sidecar: sidecar) { [weak self] in
         self?.origin ?? "https://hdrezka.ag"
@@ -64,6 +71,9 @@ final class AppState: ObservableObject {
         progress.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
+        watched.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
         prefs.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
@@ -81,7 +91,20 @@ final class AppState: ObservableObject {
             .store(in: &cancellables)
     }
 
-    func boot() { sidecar.start() }
+    func boot() {
+        sidecar.start()
+        requestNotificationAuthorizationIfPossible()
+    }
+
+    /// Ask once for permission to post local notifications (download-finished alerts).
+    /// Safe to call repeatedly; does nothing harmful if the user has denied access.
+    private func requestNotificationAuthorizationIfPossible() {
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .notDetermined else { return }
+            center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        }
+    }
 
     // MARK: HDRezka account
 

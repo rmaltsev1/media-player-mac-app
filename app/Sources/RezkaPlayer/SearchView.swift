@@ -24,12 +24,18 @@ struct SearchView: View {
                                 subtitle: "Find films, series, cartoons and anime by title.")
                     .frame(minHeight: 360)
             } else {
-                PosterGrid(items: items)
+                PosterGrid(items: displayItems)
             }
         }
         .navigationTitle("Search")
         .searchable(text: $query, placement: .toolbar, prompt: "Title…")
         .onSubmit(of: .search) { Task { await run() } }
+    }
+
+    /// `items` with watched titles removed when "Hide watched" is on.
+    private var displayItems: [CatalogueItem] {
+        guard state.hideWatched else { return items }
+        return items.filter { !state.watched.isWatched(url: $0.url) }
     }
 
     private func run() async {

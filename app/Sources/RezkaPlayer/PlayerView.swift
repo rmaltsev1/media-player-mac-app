@@ -161,6 +161,8 @@ struct PlayerView: View {
 
     private func handleEnd() {
         state.progress.markFinished(id: currentKey())
+        state.watched.mark(url: target.pageURL ?? target.urlString,
+                           title: target.title, posterURL: target.posterURL)
         autoplayNextIfPossible()
     }
 

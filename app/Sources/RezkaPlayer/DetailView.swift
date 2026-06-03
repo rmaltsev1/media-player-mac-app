@@ -46,6 +46,17 @@ struct DetailView: View {
                 }
                 .help(saved ? "Remove from Watch Later" : "Add to Watch Later")
             }
+            ToolbarItem(placement: .primaryAction) {
+                let isWatched = state.watched.isWatched(url: item.url)
+                Button {
+                    if isWatched { state.watched.unmark(url: item.url) }
+                    else { state.watched.mark(item: item) }
+                } label: {
+                    Label(isWatched ? "Watched" : "Mark as watched",
+                          systemImage: isWatched ? "checkmark.circle.fill" : "checkmark.circle")
+                }
+                .help(isWatched ? "Watched" : "Mark as watched")
+            }
         }
         .task { await loadInfo() }
     }

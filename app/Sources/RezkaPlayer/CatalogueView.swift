@@ -127,6 +127,13 @@ struct CatalogueView: View {
                 }
             }
             ToolbarItem(placement: .automatic) {
+                Toggle(isOn: $state.hideWatched) {
+                    Label("Hide watched", systemImage: "eye.slash")
+                }
+                .toggleStyle(.button)
+                .help(state.hideWatched ? "Showing unwatched only" : "Hide watched titles")
+            }
+            ToolbarItem(placement: .automatic) {
                 Button { Task { await load() } } label: { Image(systemName: "arrow.clockwise") }
             }
         }
@@ -147,9 +154,19 @@ struct CatalogueView: View {
         } else if items.isEmpty {
             CenteredMessage(systemImage: "film", title: "Nothing here yet")
                 .frame(minHeight: 400)
+        } else if displayItems.isEmpty {
+            CenteredMessage(systemImage: "eye.slash", title: "All watched",
+                            subtitle: "Every title here is marked watched. Turn off “Hide watched” to see them.")
+                .frame(minHeight: 400)
         } else {
-            PosterGrid(items: items)
+            PosterGrid(items: displayItems)
         }
+    }
+
+    /// `items` with watched titles removed when "Hide watched" is on.
+    private var displayItems: [CatalogueItem] {
+        guard state.hideWatched else { return items }
+        return items.filter { !state.watched.isWatched(url: $0.url) }
     }
 
     /// In-progress titles (one tile per title, most-recent first) for the Home "Continue Watching" row.

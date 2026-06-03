@@ -3,6 +3,7 @@ import SwiftUI
 /// A poster tile used in catalogue / search grids.
 struct PosterCard: View {
     let item: CatalogueItem
+    @EnvironmentObject var state: AppState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -12,6 +13,14 @@ struct PosterCard: View {
                     .frame(maxWidth: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.06)))
+
+                if state.watched.isWatched(url: item.url) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.white, .green)
+                        .padding(6)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
 
                 if let r = item.rating {
                     Text(String(format: "%.1f", r))

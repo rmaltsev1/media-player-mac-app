@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UserNotifications
 
 enum DownloadState: String, Codable {
     case downloading, completed, failed, paused
@@ -34,6 +35,11 @@ final class DownloadManager: NSObject, ObservableObject {
     }()
 
     private var taskToItem: [Int: UUID] = [:]
+    /// Resume data captured when a download is paused (cancel-by-producing-resume-data).
+    private var resumeData: [UUID: Data] = [:]
+    /// Task ids we cancelled intentionally for a pause, so the completion delegate
+    /// doesn't mark them failed.
+    private var pausingTasks: Set<Int> = []
     private let fm = FileManager.default
 
     override init() {
@@ -90,9 +96,66 @@ final class DownloadManager: NSObject, ObservableObject {
     }
 
     func delete(_ item: DownloadItem) {
+        // Cancel any in-flight task for this item before removing it.
+        if let tid = taskToItem.first(where: { $0.value == item.id })?.key {
+            taskToItem[tid] = nil
+            pausingTasks.remove(tid)
+            session.getAllTasks { tasks in
+                tasks.first { $0.taskIdentifier == tid }?.cancel()
+            }
+        }
+        resumeData[item.id] = nil
         try? fm.removeItem(at: localURL(for: item))
         items.removeAll { $0.id == item.id }
         save()
+    }
+
+    /// Pause an in-progress download, capturing resume data so it can continue later.
+    func pause(_ item: DownloadItem) {
+        guard item.state == .downloading,
+              let tid = taskToItem.first(where: { $0.value == item.id })?.key
+        else { return }
+        pausingTasks.insert(tid)
+        session.getAllTasks { tasks in
+            guard let task = tasks.first(where: { $0.taskIdentifier == tid })
+                    as? URLSessionDownloadTask else {
+                Task { @MainActor in self.pausingTasks.remove(tid) }
+                return
+            }
+            task.cancel(byProducingResumeData: { data in
+                Task { @MainActor in
+                    self.taskToItem[tid] = nil
+                    self.pausingTasks.remove(tid)
+                    if let data { self.resumeData[item.id] = data }
+                    guard var it = self.items.first(where: { $0.id == item.id }) else { return }
+                    it.state = .paused
+                    self.update(it)
+                }
+            })
+        }
+    }
+
+    /// Resume a previously paused download. Uses captured resume data when available,
+    /// otherwise restarts the transfer from the original URL.
+    func resume(_ item: DownloadItem) {
+        guard item.state == .paused else { return }
+        var it = item
+        it.state = .downloading
+        update(it)
+
+        let task: URLSessionDownloadTask
+        if let data = resumeData[item.id] {
+            task = session.downloadTask(withResumeData: data)
+            resumeData[item.id] = nil
+        } else if let url = URL(string: item.streamURL) {
+            task = session.downloadTask(with: url)
+        } else {
+            it.state = .failed
+            update(it)
+            return
+        }
+        taskToItem[task.taskIdentifier] = item.id
+        task.resume()
     }
 
     func isDownloaded(pageURL: String, quality: String, seasonEpisode: String?) -> Bool {
@@ -128,6 +191,24 @@ final class DownloadManager: NSObject, ObservableObject {
     private func item(forTask id: Int) -> DownloadItem? {
         guard let uuid = taskToItem[id] else { return nil }
         return items.first { $0.id == uuid }
+    }
+
+    // MARK: Notifications
+
+    /// Post a local "download complete" notification, guarded by authorization.
+    private func notifyDownloadComplete(title: String) {
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized
+                    || settings.authorizationStatus == .provisional else { return }
+            let content = UNMutableNotificationContent()
+            content.title = "Download complete"
+            content.body = title
+            content.sound = .default
+            let req = UNNotificationRequest(identifier: UUID().uuidString,
+                                            content: content, trigger: nil)
+            center.add(req, withCompletionHandler: nil)
+        }
     }
 }
 
@@ -168,6 +249,7 @@ extension DownloadManager: URLSessionDownloadDelegate {
             try? self.fm.removeItem(at: dest)
             if moved, (try? self.fm.moveItem(at: staging, to: dest)) != nil {
                 it.state = .completed
+                self.notifyDownloadComplete(title: it.title)
             } else {
                 it.state = .failed
             }
@@ -179,9 +261,17 @@ extension DownloadManager: URLSessionDownloadDelegate {
                                didCompleteWithError error: Error?) {
         let tid = task.taskIdentifier
         Task { @MainActor in
+            // Intentional pause cancellation: leave the item in .paused, don't fail it.
+            if self.pausingTasks.contains(tid) {
+                self.taskToItem[tid] = nil
+                return
+            }
+            guard error != nil, var it = self.item(forTask: tid) else {
+                self.taskToItem[tid] = nil
+                return
+            }
             self.taskToItem[tid] = nil
-            guard error != nil, var it = self.item(forTask: tid) else { return }
-            if it.state != .completed { it.state = .failed }
+            if it.state != .completed && it.state != .paused { it.state = .failed }
             self.update(it)
         }
     }

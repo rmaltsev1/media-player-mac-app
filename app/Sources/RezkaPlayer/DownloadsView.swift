@@ -42,7 +42,7 @@ private struct DownloadRow: View {
                     }
                     statusLabel
                 }
-                if item.state == .downloading {
+                if item.state == .downloading || item.state == .paused {
                     ProgressView(value: item.progress)
                         .progressViewStyle(.linear)
                     Text(sizeText).font(.caption2).foregroundStyle(.secondary)
@@ -60,6 +60,20 @@ private struct DownloadRow: View {
                     Image(systemName: "play.circle.fill").font(.title2)
                 }
                 .buttonStyle(.plain)
+            }
+            if item.state == .downloading {
+                Button { state.downloads.pause(item) } label: {
+                    Image(systemName: "pause.circle").font(.title2)
+                }
+                .buttonStyle(.plain)
+                .help("Pause download")
+            }
+            if item.state == .paused {
+                Button { state.downloads.resume(item) } label: {
+                    Image(systemName: "play.circle").font(.title2)
+                }
+                .buttonStyle(.plain)
+                .help("Resume download")
             }
             Menu {
                 if item.state == .completed {
