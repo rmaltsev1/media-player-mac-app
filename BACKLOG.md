@@ -2,6 +2,25 @@
 
 Deferred work, to pick up later.
 
+## Follow series + new-episode notifications
+
+Let users "Follow" a series (toggle on the detail page) and get a local notification when a new
+episode appears. Needs: a FollowStore (series pageURL → last-known episode count), a Follow toggle in
+DetailView, and a periodic/on-launch check that calls `/info` for each followed series and notifies
+when the episode count grows. Deferred from the Track-3 batch (download-finished notifications shipped;
+this one needs the polling subsystem). Decided 2026-06-03.
+
+## iOS port (pure-Swift core)
+
+Run on iPhone for personal + a few friends. **Not a recompile** — iOS forbids spawning the Python
+sidecar subprocess, so the scraping must run in-process: realistically a **pure-Swift port** (SwiftSoup
+for HTML + an in-process local HTTP relay server for the proxy, since AVPlayer still can't SOCKS). That
+core would also run on macOS (simplifies/notarizes the Mac app — the nested Python helper is what
+complicates notarization). Distribution without the App Store: **Apple Developer Program ($99/yr) + Ad
+Hoc** (register device UDIDs, hand out a signed .ipa, no Apple review) is the best fit for a few users;
+TestFlight is smoother but requires Apple beta review (risky for this content). EU sideloading doesn't
+apply in the UK. Decided 2026-06-03.
+
 ## Auto-update (Sparkle) + public release distribution
 
 **Goal:** ship updates that install themselves — the app checks a feed and prompts (or
