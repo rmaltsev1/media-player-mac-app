@@ -1,0 +1,21 @@
+RezkaPlayer — Install
+
+1. Drag RezkaPlayer onto the Applications folder (in this window).
+
+2. FIRST LAUNCH ONLY: open your Applications folder, right-click (or Control-click)
+   RezkaPlayer, choose "Open", then click "Open" again to confirm.
+   (macOS blocks apps from unidentified developers on a normal double-click. After
+   this one time, it opens normally.)
+
+   If it still won't open ("app is damaged" / a helper is blocked), open the
+   Terminal app and paste this one line, then press Return, then launch normally:
+
+       xattr -dr com.apple.quarantine /Applications/RezkaPlayer.app
+
+Using it
+- In some countries HDRezka's video is geo-blocked. If streaming shows a
+  "geo-restricted" message, turn on a VPN (any region where it works), or set a
+  SOCKS5/HTTP proxy in the app's Settings.
+- Set the HDRezka mirror domain in Settings if the default doesn't load.
+- Downloads are saved to: ~/Library/Application Support/RezkaPlayer/Media
+  (use the "Show in Finder" item on a download to reveal it).

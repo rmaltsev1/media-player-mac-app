@@ -56,23 +56,42 @@ final class SidecarManager: ObservableObject {
 
     // MARK: Lifecycle
 
+    /// A frozen sidecar binary bundled in the .app (distribution builds), if present.
+    private var bundledSidecarExe: String? {
+        guard let res = Bundle.main.resourceURL else { return nil }
+        let path = res.appendingPathComponent("sidecar/rezka-sidecar/rezka-sidecar").path
+        return FileManager.default.isExecutableFile(atPath: path) ? path : nil
+    }
+
     func start() {
         guard process == nil else { return }
-        guard FileManager.default.fileExists(atPath: serverScript) else {
-            state = .failed("Sidecar not found at \(serverScript). Set the path in Settings.")
-            return
+
+        // Prefer the bundled frozen sidecar (distribution); otherwise run from source via the
+        // dev venv/python (development). This is what makes a shipped .app self-contained.
+        let exe: String
+        let args: [String]
+        if let bundled = bundledSidecarExe {
+            exe = bundled
+            args = ["--port", "0"]
+        } else {
+            guard FileManager.default.fileExists(atPath: serverScript) else {
+                state = .failed("Sidecar not found at \(serverScript). Set the path in Settings.")
+                return
+            }
+            let py = pythonPath
+            if py == "/usr/bin/env" {
+                exe = py
+                args = ["python3", serverScript, "--port", "0"]
+            } else {
+                exe = py
+                args = [serverScript, "--port", "0"]
+            }
         }
         state = .starting
 
         let proc = Process()
-        let py = pythonPath
-        if py == "/usr/bin/env" {
-            proc.executableURL = URL(fileURLWithPath: py)
-            proc.arguments = ["python3", serverScript, "--port", "0"]
-        } else {
-            proc.executableURL = URL(fileURLWithPath: py)
-            proc.arguments = [serverScript, "--port", "0"]
-        }
+        proc.executableURL = URL(fileURLWithPath: exe)
+        proc.arguments = args
         var env = ProcessInfo.processInfo.environment
         env["REZKA_SIDECAR_TOKEN"] = token
         env["PYTHONUNBUFFERED"] = "1"

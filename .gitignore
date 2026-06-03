@@ -14,3 +14,9 @@ DerivedData/
 *.mp4
 *.vtt
 downloads/
+
+# Packaging / build artifacts
+build/
+sidecar/build/
+sidecar/dist/
+sidecar/*.spec

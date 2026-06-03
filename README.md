@@ -74,6 +74,32 @@ Most consumer VPNs can give you a standalone **SOCKS5 endpoint** (works without 
 credentials, if any) in the Proxy field. Alternatively, just run a system-wide VPN and leave the
 Proxy field empty.
 
+## Build a shareable app (.dmg)
+
+Produce a self-contained, double-clickable app — no Python/Xcode needed on the recipient's Mac
+(Apple Silicon):
+
+```bash
+./scripts/package.sh        # -> build/RezkaPlayer.dmg  (~13 MB)
+```
+
+This freezes the sidecar with PyInstaller (bundled into the app), builds the app in Release,
+ad-hoc signs it, and wraps it in a DMG with an `INSTALL` note. The app launches its **bundled**
+sidecar, so there's no venv dependency.
+
+**Sharing it:** send the `.dmg` directly (AirDrop / Drive / etc.), or attach it to a GitHub Release:
+
+```bash
+gh release create v0.1.0 build/RezkaPlayer.dmg -t "RezkaPlayer 0.1.0" -n "Apple Silicon build"
+```
+(For a private repo, release assets aren't publicly downloadable — share the `.dmg` file directly, or
+make the repo/release public.)
+
+**Installing (recipient):** drag to Applications, then **first launch only** right-click → **Open**
+(it's ad-hoc signed, not notarized). If macOS still blocks it:
+`xattr -dr com.apple.quarantine /Applications/RezkaPlayer.app`. For true double-click-and-run with no
+warnings, the app must be signed with an Apple Developer ID and notarized (paid).
+
 ## Notes & limitations
 
 - **Streaming is IP-gated.** HDRezka's CDN won't generate stream URLs for blocked/datacenter IPs

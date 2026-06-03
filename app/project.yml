@@ -11,7 +11,8 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     PRODUCT_NAME: RezkaPlayer
-    ENABLE_HARDENED_RUNTIME: YES
+    # Hardened runtime is only needed for notarization; off for the free ad-hoc build.
+    ENABLE_HARDENED_RUNTIME: NO
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGNING_REQUIRED: NO
     CODE_SIGNING_ALLOWED: NO
