@@ -18,6 +18,12 @@ struct DetailView: View {
     @State private var quality: String?
     @State private var streamLoading = false
     @State private var streamError: String?
+    @State private var streamRequestID = 0   // guards against out-of-order refetches
+
+    // Season download
+    @State private var seasonDownloading = false
+    @State private var seasonDone = 0
+    @State private var seasonTotal = 0
 
     var body: some View {
         ScrollView {
@@ -144,13 +150,32 @@ struct DetailView: View {
                 Button {
                     download(stream, info: info)
                 } label: {
-                    Label("Download", systemImage: "arrow.down.circle").frame(width: 120)
+                    Label(info.isSeries ? "Download Episode" : "Download",
+                          systemImage: "arrow.down.circle").frame(width: 150)
                 }
                 .buttonStyle(.bordered)
+
+                if info.isSeries {
+                    Button {
+                        Task { await downloadSeason(info, like: stream) }
+                    } label: {
+                        Label("Download Season", systemImage: "square.and.arrow.down.on.square")
+                            .frame(width: 160)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(seasonDownloading)
+                }
 
                 if let q = quality ?? stream.sortedQualities.last,
                    let n = stream.videos[q]?.count, n > 1 {
                     Text("\(n) mirrors").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if seasonDownloading {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Queuing season… \(seasonDone)/\(seasonTotal)")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
             if !stream.subtitles.isEmpty {
@@ -223,19 +248,40 @@ struct DetailView: View {
 
     private func refetch() async {
         guard let info, case .ready = state.sidecar.state else { return }
-        streamLoading = true; streamError = nil; stream = nil
-        defer { streamLoading = false }
-        do {
-            let s: StreamResponse
-            if info.isSeries {
-                s = try await state.api.stream(url: item.url, translation: translatorID,
-                                               season: seasonID, episode: episodeID)
-            } else {
-                s = try await state.api.stream(url: item.url, translation: translatorID)
+
+        // Resolve a consistent selection BEFORE requesting. When the season changes the episode
+        // is reset to nil; default it to the season's first episode, and make sure the translator
+        // is one that actually exists for that episode (otherwise the sidecar errors).
+        var reqSeason: Int? = nil
+        var reqEpisode: Int? = nil
+        var reqTranslation = translatorID
+        if info.isSeries {
+            let seasons = info.episodes ?? []
+            let sid = seasonID ?? seasons.first?.season
+            let eps = seasons.first { $0.season == sid }?.episodes ?? []
+            let eid = episodeID ?? eps.first?.episode
+            let avail = eps.first { $0.episode == eid }?.translations ?? []
+            var tid = translatorID
+            if tid == nil || !avail.contains(where: { $0.translator_id == tid }) {
+                tid = avail.first?.translator_id
             }
+            seasonID = sid; episodeID = eid; translatorID = tid   // keep UI consistent
+            reqSeason = sid; reqEpisode = eid; reqTranslation = tid
+        }
+
+        let myID = streamRequestID &+ 1
+        streamRequestID = myID
+        streamLoading = true; streamError = nil; stream = nil
+        defer { if streamRequestID == myID { streamLoading = false } }
+        do {
+            let s = try await state.api.stream(url: item.url, translation: reqTranslation,
+                                               season: reqSeason, episode: reqEpisode)
+            guard streamRequestID == myID else { return }   // a newer request superseded us
             stream = s
-            quality = s.sortedQualities.last
+            // Preserve the chosen resolution if it still exists, else pick the best.
+            if let q = quality, s.videos[q] != nil { } else { quality = s.sortedQualities.last }
         } catch {
+            guard streamRequestID == myID else { return }
             streamError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
@@ -248,6 +294,44 @@ struct DetailView: View {
             seasonEpisode: seasonEpisodeTag,
             fetchURL: state.playbackURLString(for: url)   // relay when proxied, else direct
         )
+    }
+
+    /// Queue downloads for every episode in the current season, in the selected resolution
+    /// (falling back to the best available per episode), skipping ones already downloaded.
+    private func downloadSeason(_ info: TitleInfo, like stream: StreamResponse) async {
+        guard info.isSeries, let sid = seasonID,
+              let season = (info.episodes ?? []).first(where: { $0.season == sid })
+        else { return }
+
+        let desired = quality ?? stream.sortedQualities.last
+        seasonDownloading = true; seasonDone = 0; seasonTotal = season.episodes.count
+        defer { seasonDownloading = false }
+
+        for ep in season.episodes {
+            let seTag = "S\(sid)E\(ep.episode)"
+            defer { seasonDone += 1 }
+
+            if let dq = desired,
+               state.downloads.isDownloaded(pageURL: item.url, quality: dq, seasonEpisode: seTag) {
+                continue   // already have it at this quality
+            }
+            // Use the selected translator if this episode has it, else its first available.
+            let tid = ep.translations.contains(where: { $0.translator_id == translatorID })
+                ? translatorID : ep.translations.first?.translator_id
+            do {
+                let s = try await state.api.stream(url: item.url, translation: tid,
+                                                   season: sid, episode: ep.episode)
+                let q = (desired.flatMap { s.videos[$0] != nil ? $0 : nil }) ?? s.sortedQualities.last
+                guard let q, let url = s.url(for: q) else { continue }
+                state.downloads.startDownload(
+                    title: "\(info.name) · \(seTag)", pageURL: item.url, streamURL: url,
+                    quality: q, posterURL: info.thumbnail ?? item.image, seasonEpisode: seTag,
+                    fetchURL: state.playbackURLString(for: url)
+                )
+            } catch {
+                continue   // skip episodes that fail to resolve
+            }
+        }
     }
 }
 
