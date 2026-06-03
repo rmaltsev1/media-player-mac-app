@@ -1,0 +1,900 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Account" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Аккаунт" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Акаунт" } }
+      }
+    },
+    "Action" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Боевик" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Бойовик" } }
+      }
+    },
+    "Add to Watch Later" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Добавить в «Смотреть позже»" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Додати до «Дивитися пізніше»" } }
+      }
+    },
+    "Adventure" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Приключения" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Пригоди" } }
+      }
+    },
+    "All genres" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Все жанры" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Усі жанри" } }
+      }
+    },
+    "All watched" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Всё просмотрено" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Усе переглянуто" } }
+      }
+    },
+    "All years" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Все годы" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Усі роки" } }
+      }
+    },
+    "Anime" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Аниме" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Аніме" } }
+      }
+    },
+    "Any year" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Любой год" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Будь-який рік" } }
+      }
+    },
+    "Apply domain" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Применить домен" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Застосувати домен" } }
+      }
+    },
+    "Apply proxy" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Применить прокси" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Застосувати проксі" } }
+      }
+    },
+    "Arthouse" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Артхаус" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Артхаус" } }
+      }
+    },
+    "auto (.venv or system python3)" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "авто (.venv или системный python3)" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "авто (.venv або системний python3)" } }
+      }
+    },
+    "Authorization was denied." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "В авторизации отказано." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "В авторизації відмовлено." } }
+      }
+    },
+    "Biography" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Биография" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Біографія" } }
+      }
+    },
+    "Can't play this stream" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Не удаётся воспроизвести этот поток" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Не вдається відтворити цей потік" } }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Отмена" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Скасувати" } }
+      }
+    },
+    "Cartoons" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Мультфильмы" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Мультфільми" } }
+      }
+    },
+    "Client ID" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Client ID" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Client ID" } }
+      }
+    },
+    "Client Secret" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Client Secret" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Client Secret" } }
+      }
+    },
+    "Comedy" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Комедия" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Комедія" } }
+      }
+    },
+    "Command Palette" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Командная панель" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Командна панель" } }
+      }
+    },
+    "Connect" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Подключить" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Підключити" } }
+      }
+    },
+    "Connected" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Подключено" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Підключено" } }
+      }
+    },
+    "Connected as %@" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Подключено как %@" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Підключено як %@" } }
+      }
+    },
+    "Continue Watching" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Продолжить просмотр" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Продовжити перегляд" } }
+      }
+    },
+    "Couldn't load" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Не удалось загрузить" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Не вдалося завантажити" } }
+      }
+    },
+    "Couldn't load title" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Не удалось загрузить" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Не вдалося завантажити" } }
+      }
+    },
+    "Crime" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Криминал" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Кримінал" } }
+      }
+    },
+    "Create a free API app at trakt.tv/oauth/applications (use urn:ietf:wg:oauth:2.0:oob as the redirect URI), then paste its Client ID and Secret here. The secret is stored in the macOS Keychain." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Создайте бесплатное API-приложение на trakt.tv/oauth/applications (укажите urn:ietf:wg:oauth:2.0:oob как redirect URI), затем вставьте сюда его Client ID и Secret. Secret хранится в Связке ключей macOS." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Створіть безкоштовний API-застосунок на trakt.tv/oauth/applications (вкажіть urn:ietf:wg:oauth:2.0:oob як redirect URI), потім вставте сюди його Client ID і Secret. Secret зберігається у Зв’язці ключів macOS." } }
+      }
+    },
+    "Delete" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Удалить" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Видалити" } }
+      }
+    },
+    "Delete %lld" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Удалить %lld" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Видалити %lld" } }
+      }
+    },
+    "Delete %lld watched download%@?" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Удалить %lld просмотренных загрузок%@?" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Видалити %lld переглянутих завантажень%@?" } }
+      }
+    },
+    "Delete watched downloads" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Удалить просмотренные загрузки" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Видалити переглянуті завантаження" } }
+      }
+    },
+    "Detective" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Детектив" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Детектив" } }
+      }
+    },
+    "Direct" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Напрямую" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Напряму" } }
+      }
+    },
+    "Disconnect" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Отключить" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Відключити" } }
+      }
+    },
+    "Domain" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Домен" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Домен" } }
+      }
+    },
+    "Download" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Скачать" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Завантажити" } }
+      }
+    },
+    "Download complete" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Загрузка завершена" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Завантаження завершено" } }
+      }
+    },
+    "Download Episode" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Скачать серию" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Завантажити серію" } }
+      }
+    },
+    "Download Season" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Скачать сезон" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Завантажити сезон" } }
+      }
+    },
+    "Downloading" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Скачивается" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Завантажується" } }
+      }
+    },
+    "Downloads" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Загрузки" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Завантаження" } }
+      }
+    },
+    "Drama" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Драма" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Драма" } }
+      }
+    },
+    "Email" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Эл. почта" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Ел. пошта" } }
+      }
+    },
+    "Enter this code on trakt.tv:" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Введите этот код на trakt.tv:" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Введіть цей код на trakt.tv:" } }
+      }
+    },
+    "Enter your Trakt client ID and secret first." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Сначала введите Client ID и Secret для Trakt." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Спочатку введіть Client ID і Secret для Trakt." } }
+      }
+    },
+    "Every title here is marked watched. Turn off “Hide watched” to see them." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Все названия здесь отмечены как просмотренные. Отключите «Скрыть просмотренное», чтобы их увидеть." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Усі назви тут позначені як переглянуті. Вимкніть «Сховати переглянуте», щоб їх побачити." } }
+      }
+    },
+    "Failed" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Ошибка" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Помилка" } }
+      }
+    },
+    "Family" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Семейный" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Сімейний" } }
+      }
+    },
+    "Fantasy" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Фэнтези" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Фентезі" } }
+      }
+    },
+    "Fetching stream…" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Получение потока…" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Отримання потоку…" } }
+      }
+    },
+    "Films" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Фильмы" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Фільми" } }
+      }
+    },
+    "Find films, series, cartoons and anime by title." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Ищите фильмы, сериалы, мультфильмы и аниме по названию." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Шукайте фільми, серіали, мультфільми та аніме за назвою." } }
+      }
+    },
+    "Finished movies/episodes are marked watched on Trakt, and Watch Later additions are mirrored to your Trakt watchlist." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Просмотренные фильмы и эпизоды отмечаются как просмотренные в Trakt, а добавления в «Смотреть позже» дублируются в ваш список Trakt." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Переглянуті фільми та епізоди позначаються як переглянуті в Trakt, а додавання до «Дивитися пізніше» дублюються у ваш список Trakt." } }
+      }
+    },
+    "from your Trakt API app" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "из вашего API-приложения Trakt" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "з вашого API-застосунку Trakt" } }
+      }
+    },
+    "Go to" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Перейти к" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Перейти до" } }
+      }
+    },
+    "Go to a section or search titles…" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Перейти в раздел или искать названия…" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Перейти до розділу або шукати назви…" } }
+      }
+    },
+    "HDRezka account" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Аккаунт HDRezka" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Акаунт HDRezka" } }
+      }
+    },
+    "HDRezka mirror" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Зеркало HDRezka" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Дзеркало HDRezka" } }
+      }
+    },
+    "HDRezka rotates domains and may be geo-blocked. Paste a mirror that works for you (include https://)." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "HDRezka меняет домены и может быть заблокирована по региону. Вставьте рабочее для вас зеркало (включая https://)." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "HDRezka змінює домени та може бути заблокована за регіоном. Вставте робоче для вас дзеркало (включно з https://)." } }
+      }
+    },
+    "HDRezka's video CDN is geo-blocked in some regions. A SOCKS5/HTTP proxy in a permitted region routes scraping, playback and downloads through it. Many VPNs expose a SOCKS5 endpoint (PIA, NordVPN, Windscribe, Mullvad). Leave empty to go direct." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Видео-CDN HDRezka заблокирован по региону в некоторых странах. Прокси SOCKS5/HTTP в разрешённом регионе направляет через себя сбор данных, воспроизведение и загрузки. Многие VPN предоставляют точку SOCKS5 (PIA, NordVPN, Windscribe, Mullvad). Оставьте пустым для прямого подключения." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Відео-CDN HDRezka заблоковано за регіоном у деяких країнах. Проксі SOCKS5/HTTP у дозволеному регіоні спрямовує через себе збір даних, відтворення та завантаження. Багато VPN надають точку SOCKS5 (PIA, NordVPN, Windscribe, Mullvad). Залиште порожнім для прямого підключення." } }
+      }
+    },
+    "Helper error: %@" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Ошибка помощника: %@" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Помилка помічника: %@" } }
+      }
+    },
+    "Helper ready · :%lld" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Помощник готов · :%lld" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Помічник готовий · :%lld" } }
+      }
+    },
+    "Helper stopped" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Помощник остановлен" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Помічник зупинено" } }
+      }
+    },
+    "Hide watched" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Скрыть просмотренное" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Сховати переглянуте" } }
+      }
+    },
+    "Hide watched titles" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Скрывать просмотренные названия" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Ховати переглянуті назви" } }
+      }
+    },
+    "History" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "История" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Історія" } }
+      }
+    },
+    "Horror" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Ужасы" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Жахи" } }
+      }
+    },
+    "In Watch Later" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "В «Смотреть позже»" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "У «Дивитися пізніше»" } }
+      }
+    },
+    "Latest" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Новинки" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Новинки" } }
+      }
+    },
+    "Loading…" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Загрузка…" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Завантаження…" } }
+      }
+    },
+    "Log in" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Войти" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Увійти" } }
+      }
+    },
+    "Log out" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Выйти" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Вийти" } }
+      }
+    },
+    "Logged in" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Выполнен вход" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Виконано вхід" } }
+      }
+    },
+    "Logging in enables premium translations and higher resolutions where your account allows." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Вход в аккаунт открывает премиум-озвучки и более высокое качество, если это разрешает ваш аккаунт." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Вхід в акаунт відкриває преміум-озвучення та вищу якість, якщо це дозволяє ваш акаунт." } }
+      }
+    },
+    "Mark as watched" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Отметить просмотренным" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Позначити переглянутим" } }
+      }
+    },
+    "Melodrama" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Мелодрама" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Мелодрама" } }
+      }
+    },
+    "More %@" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Ещё: %@" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Ще: %@" } }
+      }
+    },
+    "Movie" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Фильм" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Фільм" } }
+      }
+    },
+    "No active downloads" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Нет активных загрузок" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Немає активних завантажень" } }
+      }
+    },
+    "No downloads yet" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Пока нет загрузок" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Поки немає завантажень" } }
+      }
+    },
+    "No history yet" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Пока нет истории" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Поки немає історії" } }
+      }
+    },
+    "No results for “%@”" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Нет результатов по запросу «%@»" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Немає результатів за запитом «%@»" } }
+      }
+    },
+    "No titles found" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Названия не найдены" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Назви не знайдено" } }
+      }
+    },
+    "Nothing here yet" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Здесь пока пусто" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Тут поки порожньо" } }
+      }
+    },
+    "Nothing saved yet" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Пока ничего не сохранено" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Поки нічого не збережено" } }
+      }
+    },
+    "Now Watching" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Сейчас смотрят" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Зараз дивляться" } }
+      }
+    },
+    "Off (unlimited)" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Выкл. (без ограничений)" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Вимк. (без обмежень)" } }
+      }
+    },
+    "Open RezkaPlayer" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Открыть RezkaPlayer" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Відкрити RezkaPlayer" } }
+      }
+    },
+    "Open trakt.tv to authorize" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Открыть trakt.tv для авторизации" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Відкрити trakt.tv для авторизації" } }
+      }
+    },
+    "Password" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Пароль" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Пароль" } }
+      }
+    },
+    "Pause download" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Приостановить загрузку" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Призупинити завантаження" } }
+      }
+    },
+    "Paused" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Приостановлено" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Призупинено" } }
+      }
+    },
+    "Play" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Смотреть" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Дивитися" } }
+      }
+    },
+    "Popular" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Популярное" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Популярне" } }
+      }
+    },
+    "Proxy (for geo-restricted streaming)" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Прокси (для стриминга с гео-ограничениями)" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Проксі (для стримінгу з гео-обмеженнями)" } }
+      }
+    },
+    "Proxy on" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Прокси вкл." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Проксі увімк." } }
+      }
+    },
+    "Proxy URL" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "URL прокси" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "URL проксі" } }
+      }
+    },
+    "Python helper" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Python-помощник" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Python-помічник" } }
+      }
+    },
+    "Python path (optional)" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Путь к Python (необязательно)" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Шлях до Python (необов’язково)" } }
+      }
+    },
+    "Quit" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Выйти" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Вийти" } }
+      }
+    },
+    "Ready" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Готово" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Готово" } }
+      }
+    },
+    "Ready on port %lld" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Готов на порту %lld" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Готовий на порту %lld" } }
+      }
+    },
+    "Remove from Watch Later" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Убрать из «Смотреть позже»" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Прибрати з «Дивитися пізніше»" } }
+      }
+    },
+    "Restart helper" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Перезапустить помощник" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Перезапустити помічник" } }
+      }
+    },
+    "Resolution" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Качество" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Якість" } }
+      }
+    },
+    "Resume" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Продолжить" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Продовжити" } }
+      }
+    },
+    "Resume download" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Возобновить загрузку" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Відновити завантаження" } }
+      }
+    },
+    "Retry" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Повторить" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Повторити" } }
+      }
+    },
+    "Sci-Fi" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Фантастика" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Фантастика" } }
+      }
+    },
+    "Search" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Поиск" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Пошук" } }
+      }
+    },
+    "Search failed" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Ошибка поиска" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Помилка пошуку" } }
+      }
+    },
+    "Search HDRezka" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Поиск по HDRezka" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Пошук по HDRezka" } }
+      }
+    },
+    "Searching…" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Поиск…" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Пошук…" } }
+      }
+    },
+    "Season" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Сезон" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Сезон" } }
+      }
+    },
+    "Episode" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Серия" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Серія" } }
+      }
+    },
+    "Series" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Сериалы" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Серіали" } }
+      }
+    },
+    "Show in Finder" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Показать в Finder" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Показати у Finder" } }
+      }
+    },
+    "Showing unwatched only" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Показаны только непросмотренные" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Показані лише непереглянуті" } }
+      }
+    },
+    "Sidecar folder" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Папка помощника" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Тека помічника" } }
+      }
+    },
+    "Similar" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Похожее" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Схоже" } }
+      }
+    },
+    "Sort" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Сортировка" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Сортування" } }
+      }
+    },
+    "Starting helper…" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Запуск помощника…" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Запуск помічника…" } }
+      }
+    },
+    "Starting…" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Запуск…" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Запуск…" } }
+      }
+    },
+    "Status" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Статус" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Статус" } }
+      }
+    },
+    "Stopped" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Остановлено" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Зупинено" } }
+      }
+    },
+    "Storage" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Хранилище" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Сховище" } }
+      }
+    },
+    "Storage limit" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Лимит хранилища" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Ліміт сховища" } }
+      }
+    },
+    "The code expired. Try Connect again." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Срок кода истёк. Попробуйте подключиться снова." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Термін коду минув. Спробуйте підключитися знову." } }
+      }
+    },
+    "The helper isn't ready yet." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Помощник ещё не готов." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Помічник ще не готовий." } }
+      }
+    },
+    "The HDRezka helper isn't running yet." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Помощник HDRezka ещё не запущен." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Помічник HDRezka ще не запущено." } }
+      }
+    },
+    "This permanently removes completed downloads you've already watched." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Это безвозвратно удалит завершённые загрузки, которые вы уже посмотрели." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Це безповоротно видалить завершені завантаження, які ви вже переглянули." } }
+      }
+    },
+    "Thriller" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Триллер" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Трилер" } }
+      }
+    },
+    "Title…" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Название…" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Назва…" } }
+      }
+    },
+    "Titles" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Названия" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Назви" } }
+      }
+    },
+    "Titles you mark watched (or finish playing) show up here." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Названия, отмеченные просмотренными (или досмотренные), появятся здесь." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Назви, позначені переглянутими (або додивлені), з’являться тут." } }
+      }
+    },
+    "Top-ranked" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "По рейтингу" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "За рейтингом" } }
+      }
+    },
+    "Translation" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Озвучка" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Озвучення" } }
+      }
+    },
+    "Used" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Использовано" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Використано" } }
+      }
+    },
+    "War" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Военный" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Військовий" } }
+      }
+    },
+    "Watch Later" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Смотреть позже" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Дивитися пізніше" } }
+      }
+    },
+    "Watched" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Просмотрено" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Переглянуто" } }
+      }
+    },
+    "Watching" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Смотрят" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Дивляться" } }
+      }
+    },
+    "Western" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Вестерн" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Вестерн" } }
+      }
+    },
+    "When the total exceeds this limit, the oldest completed downloads are deleted automatically after a download finishes." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Когда общий размер превышает этот лимит, самые старые завершённые загрузки автоматически удаляются после окончания загрузки." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Коли загальний розмір перевищує цей ліміт, найстаріші завершені завантаження автоматично видаляються після завершення завантаження." } }
+      }
+    },
+    "you@example.com" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "you@example.com" } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "you@example.com" } }
+      }
+    },
+    "Your session cookies are stored in the macOS Keychain and sent to HDRezka only." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Файлы cookie вашей сессии хранятся в Связке ключей macOS и отправляются только на HDRezka." } },
+        "uk" : { "stringUnit" : { "state" : "translated", "value" : "Файли cookie вашої сесії зберігаються у Зв’язці ключів macOS і надсилаються лише на HDRezka." } }
+      }
+    }
+  },
+  "version" : "1.0"
+}
