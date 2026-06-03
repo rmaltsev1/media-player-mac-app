@@ -15,6 +15,10 @@ struct RezkaPlayerApp: App {
         .windowStyle(.titleBar)
         .commands {
             SidebarCommands()
+            CommandGroup(after: .toolbar) {
+                Button("Command Palette") { state.showCommandPalette = true }
+                    .keyboardShortcut("k", modifiers: .command)
+            }
         }
 
         Settings {

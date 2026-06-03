@@ -93,6 +93,20 @@ struct RootView: View {
             }
         }
         .onChange(of: selection) { _, _ in path = NavigationPath() }
+        .sheet(isPresented: $state.showCommandPalette) {
+            CommandPalette()
+        }
+        .onChange(of: state.pendingSection) { _, newValue in
+            guard let section = newValue else { return }
+            selection = section
+            path = NavigationPath()
+            state.pendingSection = nil
+        }
+        .onChange(of: state.pendingItem) { _, newValue in
+            guard let item = newValue else { return }
+            path.append(item)
+            state.pendingItem = nil
+        }
     }
 
     @ViewBuilder private var sectionRoot: some View {

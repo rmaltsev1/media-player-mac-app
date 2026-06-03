@@ -80,6 +80,19 @@ final class AppState: ObservableObject {
 
     var isLoggedIn: Bool { !cookies.isEmpty }
 
+    // MARK: Command palette navigation intents
+    //
+    // The ⌘K command palette publishes its outcome here; `RootView` observes these
+    // and drives the actual sidebar selection / navigation push. (`SidebarSection`
+    // lives in RootView.swift — same module, so referencing it here is fine.)
+
+    /// Whether the ⌘K command palette sheet is presented.
+    @Published var showCommandPalette = false
+    /// A sidebar section the user chose in the palette; RootView selects it then clears this.
+    @Published var pendingSection: SidebarSection?
+    /// A catalogue item the user chose in the palette; RootView pushes its DetailView then clears this.
+    @Published var pendingItem: CatalogueItem?
+
     let sidecar = SidecarManager()
     let downloads = DownloadManager()
     let bookmarks = BookmarkStore()
