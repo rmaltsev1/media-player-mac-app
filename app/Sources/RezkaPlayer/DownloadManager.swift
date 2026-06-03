@@ -28,6 +28,14 @@ struct DownloadItem: Codable, Identifiable, Hashable {
 @MainActor
 final class DownloadManager: NSObject, ObservableObject {
     @Published private(set) var items: [DownloadItem] = []
+    /// Total bytes currently used on disk by `Media/`, refreshed after downloads/deletes.
+    @Published private(set) var diskUsage: Int64 = 0
+
+    /// Storage cap in bytes; downloads are auto-cleaned (oldest completed first) when the
+    /// total on-disk size exceeds this. `0` (or negative) means unlimited.
+    var capBytes: Int64 = 0 {
+        didSet { enforceCap(maxBytes: capBytes) }
+    }
 
     private lazy var session: URLSession = {
         let cfg = URLSessionConfiguration.default
@@ -45,6 +53,7 @@ final class DownloadManager: NSObject, ObservableObject {
     override init() {
         super.init()
         load()
+        refreshDiskUsage()
     }
 
     // MARK: Paths
@@ -108,6 +117,7 @@ final class DownloadManager: NSObject, ObservableObject {
         try? fm.removeItem(at: localURL(for: item))
         items.removeAll { $0.id == item.id }
         save()
+        refreshDiskUsage()
     }
 
     /// Pause an in-progress download, capturing resume data so it can continue later.
@@ -162,6 +172,67 @@ final class DownloadManager: NSObject, ObservableObject {
         items.contains {
             $0.pageURL == pageURL && $0.quality == quality
             && $0.seasonEpisode == seasonEpisode && $0.state == .completed
+        }
+    }
+
+    // MARK: Storage management
+
+    /// On-disk size of a single item's media file, falling back to the recorded
+    /// `totalBytes` when the file is missing/unreadable.
+    func fileSize(of item: DownloadItem) -> Int64 {
+        if let attrs = try? fm.attributesOfItem(atPath: localURL(for: item).path),
+           let size = attrs[.size] as? NSNumber {
+            return size.int64Value
+        }
+        return item.totalBytes
+    }
+
+    /// Sum of actual file sizes in `Media/` (per item, with `totalBytes` fallback).
+    func totalBytesOnDisk() -> Int64 {
+        items.reduce(0) { $0 + fileSize(of: $1) }
+    }
+
+    /// Recompute and publish `diskUsage` so the UI can react.
+    func refreshDiskUsage() {
+        diskUsage = totalBytesOnDisk()
+    }
+
+    /// Completed downloads sorted by on-disk size, largest first.
+    func largestDownloads(limit: Int) -> [DownloadItem] {
+        items
+            .filter { $0.state == .completed }
+            .sorted { fileSize(of: $0) > fileSize(of: $1) }
+            .prefix(limit)
+            .map { $0 }
+    }
+
+    /// Delete every item matching `predicate` (reuses `delete(_:)`).
+    @discardableResult
+    func deleteMatching(_ predicate: (DownloadItem) -> Bool) -> Int {
+        let victims = items.filter(predicate)
+        victims.forEach { delete($0) }
+        return victims.count
+    }
+
+    /// Completed downloads whose page URL is in the watched set.
+    func watchedDownloads(isWatched: (String) -> Bool) -> [DownloadItem] {
+        items.filter { $0.state == .completed && isWatched($0.pageURL) }
+    }
+
+    /// If the total on-disk size exceeds `maxBytes`, delete completed downloads
+    /// oldest-first (by `addedAt`) until back under the cap. No-op when `maxBytes <= 0`.
+    func enforceCap(maxBytes: Int64) {
+        guard maxBytes > 0 else { return }
+        var used = totalBytesOnDisk()
+        guard used > maxBytes else { return }
+        let candidates = items
+            .filter { $0.state == .completed }
+            .sorted { $0.addedAt < $1.addedAt }
+        for item in candidates {
+            if used <= maxBytes { break }
+            let size = fileSize(of: item)
+            delete(item)
+            used -= size
         }
     }
 
@@ -250,10 +321,14 @@ extension DownloadManager: URLSessionDownloadDelegate {
             if moved, (try? self.fm.moveItem(at: staging, to: dest)) != nil {
                 it.state = .completed
                 self.notifyDownloadComplete(title: it.title)
+                self.update(it)
+                self.refreshDiskUsage()
+                // Auto-cleanup oldest completed downloads if we're over the cap.
+                self.enforceCap(maxBytes: self.capBytes)
             } else {
                 it.state = .failed
+                self.update(it)
             }
-            self.update(it)
         }
     }
 

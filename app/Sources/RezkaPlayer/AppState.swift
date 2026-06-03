@@ -24,6 +24,20 @@ final class AppState: ObservableObject {
         didSet { objectWillChange.send() }
     }
 
+    /// Maximum on-disk size for downloads, in GB. `0` means unlimited. When exceeded,
+    /// the oldest completed downloads are auto-deleted after a download finishes.
+    @AppStorage("maxStorageGB") var maxStorageGB: Double = 0 {
+        didSet {
+            downloads.capBytes = Self.bytes(fromGB: maxStorageGB)
+            objectWillChange.send()
+        }
+    }
+
+    /// Convert a GB value to bytes (1 GB == 1_000_000_000 bytes, matching `.file` formatting).
+    static func bytes(fromGB gb: Double) -> Int64 {
+        gb <= 0 ? 0 : Int64(gb * 1_000_000_000)
+    }
+
     /// Trakt.tv API app client id (user-supplied; the secret lives in the Keychain).
     @AppStorage("traktClientID") var traktClientID: String = "" {
         didSet { objectWillChange.send() }
@@ -91,6 +105,9 @@ final class AppState: ObservableObject {
            let saved = try? JSONDecoder().decode([String: String].self, from: data) {
             cookies = saved
         }
+
+        // Apply the saved storage cap (enforced after each completed download).
+        downloads.capBytes = Self.bytes(fromGB: maxStorageGB)
 
         // Re-publish sidecar state changes so views observing AppState refresh.
         sidecar.objectWillChange

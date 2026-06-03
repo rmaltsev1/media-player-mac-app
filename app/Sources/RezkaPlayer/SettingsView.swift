@@ -17,6 +17,12 @@ struct SettingsView: View {
     // Trakt credentials (client id is bound to AppStorage; secret lives in the Keychain).
     @State private var traktSecretField: String = ""
 
+    // Storage management
+    @State private var confirmDeleteWatched = false
+
+    /// Cap options shown in the menu (GB; 0 == unlimited / "Off").
+    private let storageCapOptions: [Double] = [0, 5, 10, 20, 50, 100]
+
     var body: some View {
         Form {
             Section("HDRezka account") {
@@ -77,6 +83,62 @@ struct SettingsView: View {
                     Label(state.proxyEnabled ? "Proxy on" : "Direct",
                           systemImage: state.proxyEnabled ? "lock.shield" : "globe")
                         .font(.caption).foregroundStyle(state.proxyEnabled ? .green : .secondary)
+                }
+            }
+
+            Section("Storage") {
+                LabeledContent("Used") {
+                    Text("\(byteString(state.downloads.diskUsage)) · \(state.downloads.items.count) "
+                         + "download\(state.downloads.items.count == 1 ? "" : "s")")
+                        .foregroundStyle(.secondary)
+                }
+
+                Picker("Storage limit", selection: $state.maxStorageGB) {
+                    ForEach(storageCapOptions, id: \.self) { gb in
+                        Text(gb <= 0 ? "Off (unlimited)" : "\(Int(gb)) GB").tag(gb)
+                    }
+                }
+                Text("When the total exceeds this limit, the oldest completed downloads are "
+                     + "deleted automatically after a download finishes.")
+                    .font(.caption).foregroundStyle(.secondary)
+
+                let watchedCount = state.downloads
+                    .watchedDownloads(isWatched: { state.watched.isWatched(url: $0) }).count
+                Button(role: .destructive) {
+                    confirmDeleteWatched = true
+                } label: {
+                    Label("Delete watched downloads", systemImage: "trash")
+                }
+                .disabled(watchedCount == 0)
+                .confirmationDialog(
+                    "Delete \(watchedCount) watched download\(watchedCount == 1 ? "" : "s")?",
+                    isPresented: $confirmDeleteWatched, titleVisibility: .visible
+                ) {
+                    Button("Delete \(watchedCount)", role: .destructive) {
+                        state.downloads.deleteMatching {
+                            $0.state == .completed && state.watched.isWatched(url: $0.pageURL)
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This permanently removes completed downloads you've already watched.")
+                }
+                if watchedCount > 0 {
+                    Text("\(watchedCount) completed download\(watchedCount == 1 ? "" : "s") "
+                         + "marked watched.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
+                let largest = state.downloads.largestDownloads(limit: 5)
+                if !largest.isEmpty {
+                    ForEach(largest) { item in
+                        LabeledContent {
+                            Text(byteString(state.downloads.fileSize(of: item)))
+                                .foregroundStyle(.secondary)
+                        } label: {
+                            Text(item.title).lineLimit(1)
+                        }
+                    }
                 }
             }
 
@@ -165,6 +227,12 @@ struct SettingsView: View {
                 loginError = (error as? APIError)?.errorDescription ?? error.localizedDescription
             }
         }
+    }
+
+    private func byteString(_ bytes: Int64) -> String {
+        let f = ByteCountFormatter()
+        f.countStyle = .file
+        return f.string(fromByteCount: bytes)
     }
 
     private func normalized(_ s: String) -> String {
