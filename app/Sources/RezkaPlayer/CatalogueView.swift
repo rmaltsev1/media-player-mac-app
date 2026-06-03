@@ -72,6 +72,13 @@ struct CatalogueView: View {
     @State private var loading = false
     @State private var error: String?
 
+    // "Because you watched" recommendation rows (Home only). Loaded best-effort in `.task`;
+    // empty rows simply render nothing.
+    @State private var becauseItems: [CatalogueItem] = []      // similar to most-recent watched
+    @State private var becauseTitle: String = ""               // e.g. "Because you watched Dune"
+    @State private var moreGenreItems: [CatalogueItem] = []    // top-genre catalogue
+    @State private var moreGenreTitle: String = ""             // e.g. "More Drama"
+
     /// Sort options shown in the picker -> (sidecar sort value, label).
     private static let sortOptions: [(String, String)] = [
         ("best", "Top-ranked"),
@@ -91,6 +98,9 @@ struct CatalogueView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if isHome, !continueItems.isEmpty {
                     continueWatchingSection
+                }
+                if isHome {
+                    recommendationsSection
                 }
                 mainContent
             }
@@ -138,6 +148,7 @@ struct CatalogueView: View {
             }
         }
         .task(id: taskKey) { await load() }
+        .task(id: recommendationsKey) { if isHome { await loadRecommendations() } }
         .onChange(of: state.sidecar.state) { _, new in
             if case .ready = new, items.isEmpty { Task { await load() } }
         }
@@ -200,6 +211,118 @@ struct CatalogueView: View {
             }
         }
         .padding(.horizontal, 20).padding(.top, 16)
+    }
+
+    // MARK: Because-you-watched recommendations (Home only)
+
+    @ViewBuilder private var recommendationsSection: some View {
+        if !becauseItems.isEmpty {
+            recommendationRow(title: becauseTitle, items: becauseItems)
+        }
+        if !moreGenreItems.isEmpty {
+            recommendationRow(title: moreGenreTitle, items: moreGenreItems)
+        }
+    }
+
+    @ViewBuilder private func recommendationRow(title: String, items: [CatalogueItem]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).font(.title3).bold()
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 16) {
+                    ForEach(items) { item in
+                        NavigationLink(value: item) {
+                            PosterCard(item: item).frame(width: 150)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.bottom, 4)
+            }
+        }
+        .padding(.horizontal, 20).padding(.top, 16)
+    }
+
+    /// Re-derive the recommendation rows from the current watch history. Best-effort:
+    /// network/geo failures or empty history just leave the rows empty (nothing renders).
+    private func loadRecommendations() async {
+        guard case .ready = state.sidecar.state else { return }
+        let history = state.watched.history()
+        guard !history.isEmpty else {
+            becauseItems = []; becauseTitle = ""
+            moreGenreItems = []; moreGenreTitle = ""
+            return
+        }
+
+        var shown = Set<String>()   // URLs already surfaced, to avoid cross-row dupes
+
+        // Row 1 — similar to the single most-recently watched title.
+        var row1: [CatalogueItem] = []
+        var row1Title = ""
+        let recent = history[0]
+        if let info = try? await state.api.info(url: recent.url) {
+            let similar = (info.similar ?? []).filter {
+                !state.watched.isWatched(url: $0.url)
+            }
+            row1 = Array(similar.prefix(15))
+            row1.forEach { shown.insert($0.url) }
+            if !row1.isEmpty { row1Title = "Because you watched \(info.name)" }
+        }
+        becauseItems = row1
+        becauseTitle = row1Title
+
+        // Row 2 — more from the user's most-frequent (category, genre).
+        var row2: [CatalogueItem] = []
+        var row2Title = ""
+        if let top = topGenre(from: history) {
+            if let results = try? await state.api.browse(
+                collection: "best", category: top.category,
+                genre: top.slug, sort: "best") {
+                let filtered = results.filter {
+                    !state.watched.isWatched(url: $0.url) && !shown.contains($0.url)
+                }
+                row2 = Array(filtered.prefix(15))
+                if !row2.isEmpty { row2Title = "More \(top.label)" }
+            }
+        }
+        moreGenreItems = row2
+        moreGenreTitle = row2Title
+    }
+
+    /// The most-frequent (category, genre slug, label) across the watch history, or nil if none
+    /// of the URLs encode a recognisable genre.
+    private func topGenre(from history: [CatalogueItem]) -> (category: String, slug: String, label: String)? {
+        var counts: [String: (category: String, slug: String, label: String, n: Int)] = [:]
+        for item in history {
+            guard let parsed = Self.categoryGenre(fromPageURL: item.url) else { continue }
+            let key = "\(parsed.category)/\(parsed.slug)"
+            let n = (counts[key]?.n ?? 0) + 1
+            counts[key] = (parsed.category, parsed.slug, parsed.label, n)
+        }
+        guard let best = counts.values.max(by: { $0.n < $1.n }) else { return nil }
+        return (best.category, best.slug, best.label)
+    }
+
+    /// Parse the HDRezka category + genre slug from a page URL path, e.g.
+    /// `https://host/films/drama/763-...html` → ("films", "drama", "Drama"). The genre slug
+    /// is mapped to a display label via `CatalogueGenres`; returns nil if not recognised.
+    static func categoryGenre(fromPageURL pageURL: String) -> (category: String, slug: String, label: String)? {
+        guard let url = URL(string: pageURL) else { return nil }
+        // Drop the leading "/" and any trailing filename like "763-...html".
+        let parts = url.path.split(separator: "/").map(String.init)
+        guard parts.count >= 2 else { return nil }
+        let category = parts[0]
+        let slug = parts[1]
+        guard let genre = CatalogueGenres.forCategory(category).first(where: { $0.slug == slug })
+        else { return nil }
+        return (category, slug, genre.label)
+    }
+
+    /// Key for the recommendations `.task`: refreshes whenever the most-recent watched title
+    /// or the history size changes, plus when the sidecar becomes ready.
+    private var recommendationsKey: String {
+        let h = state.watched.history()
+        let ready = { if case .ready = state.sidecar.state { return "1" }; return "0" }()
+        return "\(ready)-\(h.count)-\(h.first?.url ?? "")"
     }
 
     private var isHome: Bool { mode == .home }
