@@ -33,6 +33,12 @@ final class SidecarManager: ObservableObject {
         return nil
     }
 
+    /// The bound port once ready (used to build LAN-reachable relay URLs for AirPlay).
+    var port: Int? {
+        if case .ready(let p) = state { return p }
+        return nil
+    }
+
     // MARK: Resolved paths (overridable in Settings)
 
     static var defaultSidecarDir: String {
@@ -70,9 +76,12 @@ final class SidecarManager: ObservableObject {
         // dev venv/python (development). This is what makes a shipped .app self-contained.
         let exe: String
         let args: [String]
+        // Bind on 0.0.0.0 (not just loopback) so an AirPlay receiver (Apple TV / smart TV) can
+        // reach the /relay endpoint over the LAN and pull video through this Mac. Every endpoint
+        // is token-guarded (X-Auth-Token / the relay's `t` param), so LAN exposure stays gated.
         if let bundled = bundledSidecarExe {
             exe = bundled
-            args = ["--port", "0"]
+            args = ["--host", "0.0.0.0", "--port", "0"]
         } else {
             guard FileManager.default.fileExists(atPath: serverScript) else {
                 state = .failed("Sidecar not found at \(serverScript). Set the path in Settings.")
@@ -81,10 +90,10 @@ final class SidecarManager: ObservableObject {
             let py = pythonPath
             if py == "/usr/bin/env" {
                 exe = py
-                args = ["python3", serverScript, "--port", "0"]
+                args = ["python3", serverScript, "--host", "0.0.0.0", "--port", "0"]
             } else {
                 exe = py
-                args = [serverScript, "--port", "0"]
+                args = [serverScript, "--host", "0.0.0.0", "--port", "0"]
             }
         }
         state = .starting

@@ -19,6 +19,8 @@ in-tree when HDRezka changes.
   **resolution** (360p–1080p Ultra). Series get season/episode pickers.
 - **Continue Watching** row + **resume from where you left off**.
 - **Auto-play the next episode** of a series.
+- **AirPlay to a TV** — the stream is relayed through your Mac (over its LAN IP), so it keeps working
+  even when the title is geo-blocked / behind your Mac's VPN. Just pick an AirPlay route in the player.
 - Remembers your **preferred resolution** and **per-title translation**.
 
 **Library**

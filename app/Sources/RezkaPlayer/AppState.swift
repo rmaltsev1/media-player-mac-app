@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import Combine
 import UserNotifications
+import Darwin   // getifaddrs / ifaddrs for LAN IP discovery (AirPlay relay)
 
 @MainActor
 final class AppState: ObservableObject {
@@ -272,11 +273,60 @@ final class AppState: ObservableObject {
         return comps.url!.absoluteString
     }
 
+    /// LAN-reachable relay URL for AirPlay. AVPlayer's external-playback mode hands the *URL* to
+    /// the TV and the TV fetches it itself — so a `127.0.0.1` relay or a geo-blocked CDN URL fails
+    /// (the TV can't reach loopback, and it isn't behind your Mac's VPN). This points the TV at the
+    /// sidecar on this Mac's LAN IP instead: the TV pulls from the Mac, and the Mac fetches the CDN
+    /// out over its own connection (VPN/proxy). Falls back to the normal URL if no LAN IP is found.
+    func airplayURLString(for cdnURL: String) -> String {
+        guard let port = sidecar.port, let ip = LANAddress.primaryIPv4(),
+              var comps = URLComponents(string: "http://\(ip):\(port)/relay") else {
+            return playbackURLString(for: cdnURL)
+        }
+        comps.queryItems = [
+            URLQueryItem(name: "u", value: Self.b64url(cdnURL)),
+            URLQueryItem(name: "t", value: sidecar.token),
+            URLQueryItem(name: "r", value: Self.b64url(origin)),
+        ]
+        return comps.url?.absoluteString ?? playbackURLString(for: cdnURL)
+    }
+
     /// URL-safe base64 without padding (matches the sidecar's `_b64url_decode`).
     static func b64url(_ s: String) -> String {
         Data(s.utf8).base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
+    }
+}
+
+/// Discovers this Mac's primary LAN IPv4 — the address an AirPlay receiver on the same network
+/// uses to reach the sidecar relay. Prefers Wi-Fi/Ethernet (`en0`/`en1`/…), skips loopback and
+/// link-local (`169.254.*`). Returns nil if the Mac has no routable LAN address.
+enum LANAddress {
+    static func primaryIPv4() -> String? {
+        var head: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&head) == 0, let first = head else { return nil }
+        defer { freeifaddrs(head) }
+
+        var candidates: [(name: String, ip: String)] = []
+        for ptr in sequence(first: first, next: { $0.pointee.ifa_next }) {
+            let ifa = ptr.pointee
+            let flags = Int32(ifa.ifa_flags)
+            guard (flags & IFF_UP) == IFF_UP, (flags & IFF_LOOPBACK) == 0 else { continue }
+            guard let sa = ifa.ifa_addr, sa.pointee.sa_family == UInt8(AF_INET) else { continue }
+
+            var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            guard getnameinfo(sa, socklen_t(sa.pointee.sa_len),
+                              &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST) == 0 else { continue }
+            let ip = String(cString: host)
+            if ip.isEmpty || ip.hasPrefix("169.254.") { continue }   // skip link-local
+            candidates.append((String(cString: ifa.ifa_name), ip))
+        }
+        // Prefer the usual primary interfaces (Wi-Fi/Ethernet) before anything else.
+        for pref in ["en0", "en1", "en2", "en3"] {
+            if let m = candidates.first(where: { $0.name == pref }) { return m.ip }
+        }
+        return candidates.first?.ip
     }
 }

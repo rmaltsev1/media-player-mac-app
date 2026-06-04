@@ -40,8 +40,11 @@ Packaged DMG: `./scripts/package.sh` → `build/RezkaPlayer.dmg` (see Packaging 
   Version lives in `MARKETING_VERSION`/`CURRENT_PROJECT_VERSION` (Info.plist references them).
 - **Sidecar process management** (`Sidecar.swift`): the app prefers a **bundled** frozen sidecar
   (`Resources/sidecar/rezka-sidecar/rezka-sidecar`, present in packaged builds) and falls back to the
-  dev venv/`server.py` otherwise. It launches with `--port 0` (OS-assigned), parses the
-  `SIDECAR_READY host=.. port=N` stdout line, and sends a per-launch `X-Auth-Token` on every request.
+  dev venv/`server.py` otherwise. It launches with `--host 0.0.0.0 --port 0` (OS-assigned port),
+  parses the `SIDECAR_READY host=.. port=N` stdout line, and sends a per-launch `X-Auth-Token` on
+  every request. It binds on `0.0.0.0` (not just loopback) so an AirPlay receiver can reach the
+  `/relay` over the LAN (see AirPlay below); every endpoint stays token-gated, so LAN exposure is
+  closed except `GET /health`. The app's own control traffic still uses `127.0.0.1`.
 - **Sidecar cleanup is belt-and-suspenders:** the app calls `stop()` on `willTerminate`, *and*
   `server.py` runs a stdin-EOF watchdog so it self-terminates if the app crashes. Both prevent
   orphaned Python. The watchdog only runs when `REZKA_SIDECAR_MANAGED=1` (set by the app) — else a
@@ -105,6 +108,17 @@ app rewrites stream/download URLs to `GET /relay?u=…` (`AppState.playbackURLSt
 fetches CDN bytes through the proxy and forwards Range requests for seeking. `u`/`r` are URL-safe
 base64 (`AppState.b64url` ↔ `server._b64url_decode`). SOCKS needs `PySocks` (`socks5://` → `socks5h://`
 so DNS resolves at the proxy).
+
+### AirPlay (LAN relay)
+
+AVPlayer's **external-playback** (AirPlay) mode hands the *video URL to the TV* and the TV fetches it
+itself — so a `127.0.0.1` relay URL (TV can't reach loopback) or a geo-blocked CDN URL (the TV isn't
+behind the Mac's VPN) both fail. Fix: when `AVPlayer.isExternalPlaybackActive` flips (observed in
+`PlayerView`), rebuild the current remote item against `AppState.airplayURLString` — a `/relay` URL
+on the **Mac's LAN IP** (`LANAddress.primaryIPv4()`) instead of loopback. The TV then pulls from the
+Mac, and the Mac fetches the CDN out over its own connection (VPN/proxy), exactly like local playback.
+Position is preserved across the swap; local downloaded files are left alone (AVPlayer streams those
+to the receiver from the Mac already). Requires the `0.0.0.0` bind above so the TV can reach the relay.
 
 ## Known gotcha — streaming is IP-gated
 
