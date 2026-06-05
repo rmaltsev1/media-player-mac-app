@@ -37,6 +37,8 @@ in-tree when HDRezka changes.
 **System**
 - **Menu-bar mini-controller** (helper status + active downloads) and **download-finished
   notifications**.
+- **Auto-update** — the app checks GitHub releases and installs new versions in place (Sparkle,
+  EdDSA-signed). *RezkaPlayer → Check for Updates…*, or toggle automatic checks in Settings.
 
 ## Architecture
 
@@ -120,11 +122,17 @@ DMG on a macOS runner and publishes it as a GitHub Release:
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
-**Installing (recipient):** drag to Applications, then **first launch only** right-click → **Open**
-(it's ad-hoc signed, not notarized). If macOS still blocks it:
-`xattr -dr com.apple.quarantine /Applications/RezkaPlayer.app`. (For a private repo, Release assets
-aren't publicly downloadable — share the `.dmg` directly, or make the repo/release public.) See
-`BACKLOG.md` for the planned Sparkle auto-update + notarized-distribution work.
+**Installing (recipient):** download `RezkaPlayer.dmg` from the
+[latest release](https://github.com/rmaltsev1/media-player-mac-app/releases/latest), drag to
+Applications, then **first launch only** right-click → **Open** (it's ad-hoc signed, not notarized).
+If macOS still blocks it: `xattr -dr com.apple.quarantine /Applications/RezkaPlayer.app`.
+
+**Auto-update:** once installed, the app keeps itself current via
+[Sparkle](https://sparkle-project.org) — it reads an `appcast.xml` published with each release and
+verifies the new DMG against an embedded EdDSA key before installing. CI signs each build with the
+`SPARKLE_ED_PRIVATE_KEY` secret (the public key is in the app's Info.plist). Because the build isn't
+Apple-notarized, an update may re-show the right-click → Open prompt once; see `BACKLOG.md` for the
+notarization follow-up.
 
 ## Notes & limitations
 

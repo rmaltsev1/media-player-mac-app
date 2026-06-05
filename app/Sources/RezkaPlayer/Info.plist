@@ -43,5 +43,13 @@
 	</dict>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/rmaltsev1/media-player-mac-app/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>ShsNIkWsNmoblcM+MqgzlwKBdDjVPpUaYTiOIi/6YWs=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>

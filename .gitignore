@@ -5,6 +5,7 @@ __pycache__/
 
 # Xcode / Swift
 app/.build/
+app/.spm-cache/
 app/RezkaPlayer.xcodeproj/
 DerivedData/
 *.xcuserstate

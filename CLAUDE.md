@@ -133,11 +133,25 @@ via the in-app proxy.
 - `scripts/build-sidecar.sh` — PyInstaller **onedir** freeze of the sidecar (onefile was ~7s
   startup; onedir ~1s). Includes requests/bs4/PySocks + vendored `hdrezka`.
 - `scripts/package.sh` — Release build → bundle the frozen sidecar into `Resources/` → ad-hoc sign
-  inside-out → `build/RezkaPlayer.dmg` (Apple Silicon, hardened runtime OFF — not notarized).
-- `.github/workflows/release.yml` — on a `v*` tag, runs `package.sh` on a macOS runner and publishes
-  the DMG as a GitHub Release.
+  inside-out (including **Sparkle's** nested Updater.app/XPC services/Autoupdate) → `build/RezkaPlayer.dmg`
+  (Apple Silicon, hardened runtime OFF — not notarized).
+- `.github/workflows/release.yml` — on a `v*` tag, runs `package.sh`, then **EdDSA-signs the DMG**
+  (`sign_update -f` with the `SPARKLE_ED_PRIVATE_KEY` repo secret), generates `appcast.xml`, and
+  publishes both as a GitHub Release.
 - First launch on a recipient's Mac needs right-click → Open or
   `xattr -dr com.apple.quarantine /Applications/RezkaPlayer.app`.
+
+### Auto-update (Sparkle)
+
+Sparkle (SPM dep in `project.yml`) keeps the app current. Config is in Info.plist via `project.yml`:
+`SUFeedURL` → `https://github.com/rmaltsev1/media-player-mac-app/releases/latest/download/appcast.xml`
+(GitHub's stable "latest release" URL), `SUPublicEDKey` → the EdDSA public key. `Updater.swift` owns
+an `SPUStandardUpdaterController`; the "Check for Updates…" menu item (`RezkaPlayerApp`) and the
+Settings → Updates toggle drive it. **The signing keypair:** private key lives in the maintainer's
+login Keychain *and* the `SPARKLE_ED_PRIVATE_KEY` GitHub Actions secret; public key is embedded.
+Verification is EdDSA-only (independent of Apple notarization). **Rollout is two-release:** the
+version that *adds* Sparkle can't be auto-pulled by older builds — the first auto-update a user sees
+is the release *after* the one they installed.
 
 ## Decisions made (don't re-litigate without reason)
 
@@ -145,10 +159,10 @@ via the in-app proxy.
   in `BACKLOG.md`).
 - Domain configurable in Settings (default `https://hdrezka.ag`); HDRezka geo-blocks the CDN.
 - Login implemented (Keychain cookies). Downloads are direct `.mp4` per resolution via `URLSession`.
-- Distribution: free **ad-hoc DMG** (right-click-Open). Notarization + Sparkle auto-update are
-  deferred in `BACKLOG.md`.
+- Distribution: free **ad-hoc DMG** (right-click-Open) + **Sparkle auto-update** (EdDSA-signed,
+  shipped v0.4.0). Apple notarization is still deferred in `BACKLOG.md`.
 
 ## Backlog
 
-See `BACKLOG.md`: Sparkle auto-update + public releases, follow-series + new-episode notifications,
-iOS port (pure-Swift core).
+See `BACKLOG.md`: Apple notarization (removes Gatekeeper friction on updates), follow-series +
+new-episode notifications, iOS port (pure-Swift core).

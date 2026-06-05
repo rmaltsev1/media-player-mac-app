@@ -4,17 +4,22 @@ import AppKit
 @main
 struct RezkaPlayerApp: App {
     @StateObject private var state = AppState()
+    @StateObject private var updater = UpdaterController()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(state)
+                .environmentObject(updater)
                 .frame(minWidth: 1000, minHeight: 680)
                 .onAppear { state.boot() }
         }
         .windowStyle(.titleBar)
         .commands {
             SidebarCommands()
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesView(updater: updater)
+            }
             CommandGroup(after: .toolbar) {
                 Button("Command Palette") { state.showCommandPalette = true }
                     .keyboardShortcut("k", modifiers: .command)
@@ -24,6 +29,7 @@ struct RezkaPlayerApp: App {
         Settings {
             SettingsView()
                 .environmentObject(state)
+                .environmentObject(updater)
                 .frame(width: 520)
         }
 

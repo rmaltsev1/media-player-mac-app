@@ -27,10 +27,54 @@ jobs:
       - name: Build DMG
         run: ./scripts/package.sh
 
+      - name: Sign update & generate Sparkle appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          SPARKLE_VERSION: "2.9.2"
+        run: |
+          set -euo pipefail
+          # Fetch Sparkle's CLI tools (we only need sign_update).
+          curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" -o /tmp/sparkle.tar.xz
+          mkdir -p /tmp/sparkle && tar -xf /tmp/sparkle.tar.xz -C /tmp/sparkle
+
+          # EdDSA-sign the DMG using the private key from the repo secret (no Keychain in CI).
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > /tmp/sparkle_ed.key
+          SIGN=$(/tmp/sparkle/bin/sign_update build/RezkaPlayer.dmg -f /tmp/sparkle_ed.key)
+          rm -P /tmp/sparkle_ed.key
+          echo "signature: $SIGN"
+
+          # Version info comes from the built app so it always matches the binary.
+          APP="build/dd/Build/Products/Release/RezkaPlayer.app"
+          SHORT=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")
+          BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")
+          DMG_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/RezkaPlayer.dmg"
+          PUBDATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
+
+          cat > build/appcast.xml <<EOF
+          <?xml version="1.0" standalone="yes"?>
+          <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+            <channel>
+              <title>RezkaPlayer</title>
+              <item>
+                <title>${SHORT}</title>
+                <pubDate>${PUBDATE}</pubDate>
+                <sparkle:version>${BUILD}</sparkle:version>
+                <sparkle:shortVersionString>${SHORT}</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+                <description><![CDATA[<p>RezkaPlayer ${SHORT}. See the <a href="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}">release notes</a> on GitHub.</p>]]></description>
+                <enclosure url="${DMG_URL}" ${SIGN} type="application/octet-stream" />
+              </item>
+            </channel>
+          </rss>
+          EOF
+          echo "--- generated appcast.xml ---"; cat build/appcast.xml
+
       - name: Publish Release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/RezkaPlayer.dmg
+          files: |
+            build/RezkaPlayer.dmg
+            build/appcast.xml
           name: RezkaPlayer ${{ github.ref_name }}
           fail_on_unmatched_files: true
           body: |
@@ -40,4 +84,6 @@ jobs:
             right-click RezkaPlayer → **Open**. If macOS still blocks it:
             `xattr -dr com.apple.quarantine /Applications/RezkaPlayer.app`
 
-            Streaming may need a VPN/proxy where HDRezka is geo-blocked (see app Settings).
+            Once installed, the app **auto-updates** via Sparkle (RezkaPlayer →
+            Check for Updates…). Streaming may need a VPN/proxy where HDRezka is geo-blocked
+            (see app Settings).

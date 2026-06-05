@@ -37,6 +37,23 @@ echo "==> 4/5  Ad-hoc sign (inside-out)"
 find "$RES/rezka-sidecar/_internal" \( -name '*.dylib' -o -name '*.so' \) -print0 2>/dev/null \
   | while IFS= read -r -d '' f; do codesign --force --sign - "$f" 2>/dev/null || true; done
 codesign --force --sign - "$RES/rezka-sidecar/rezka-sidecar"
+
+# Sparkle ships nested helpers (Updater.app, the Installer/Downloader XPC services and the
+# Autoupdate tool) that must each be signed before the framework is sealed — `--deep` alone is
+# unreliable for these, so sign them explicitly inside-out.
+SPARKLE_FW="$APP/Contents/Frameworks/Sparkle.framework"
+if [ -d "$SPARKLE_FW" ]; then
+  V="$SPARKLE_FW/Versions/B"
+  for nested in \
+    "$V/XPCServices/Downloader.xpc" \
+    "$V/XPCServices/Installer.xpc" \
+    "$V/Updater.app" \
+    "$V/Autoupdate"; do
+    [ -e "$nested" ] && codesign --force --sign - "$nested"
+  done
+  codesign --force --sign - "$SPARKLE_FW"
+fi
+
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP" && echo "    signature OK"
 

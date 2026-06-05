@@ -2,9 +2,12 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var state: AppState
+    @EnvironmentObject var updater: UpdaterController
 
     @AppStorage("sidecarDir") private var sidecarDir: String = SidecarManager.defaultSidecarDir
     @AppStorage("pythonPath") private var pythonPath: String = ""
+
+    @State private var autoCheckUpdates = true
 
     @State private var originField: String = ""
 
@@ -196,6 +199,21 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Updates") {
+                LabeledContent("Current version") {
+                    Text(appVersionString).foregroundStyle(.secondary)
+                }
+                Toggle("Automatically check for updates", isOn: $autoCheckUpdates)
+                    .onChange(of: autoCheckUpdates) { _, v in
+                        updater.automaticallyChecksForUpdates = v
+                    }
+                Button("Check for updates now") { updater.checkForUpdates() }
+                    .disabled(!updater.canCheckForUpdates)
+                Text("Updates are downloaded from this project's GitHub releases and verified with "
+                     + "the app's built-in signature before installing.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             Section("Python helper") {
                 LabeledContent("Status") { Text(statusText).foregroundStyle(.secondary) }
                 TextField("Sidecar folder", text: $sidecarDir).textFieldStyle(.roundedBorder)
@@ -213,7 +231,15 @@ struct SettingsView: View {
         .onAppear {
             originField = state.origin
             traktSecretField = state.traktClientSecret
+            autoCheckUpdates = updater.automaticallyChecksForUpdates
         }
+    }
+
+    private var appVersionString: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "\(short) (\(build))"
     }
 
     private func logIn() {
