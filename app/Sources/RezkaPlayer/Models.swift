@@ -40,13 +40,21 @@ struct BrowseResponse: Codable { let results: [CatalogueItem] }
 
 struct Translator: Codable, Hashable, Identifiable {
     let id: Int
-    let name: String
+    // HDRezka's default/original audio track can come back with no translator name;
+    // keep it optional so a null doesn't fail decoding the whole title.
+    let name: String?
     let premium: Bool
+
+    /// Non-empty label for the picker (falls back when HDRezka omits the name).
+    var displayName: String {
+        let n = name?.trimmingCharacters(in: .whitespaces) ?? ""
+        return n.isEmpty ? "Original" : n
+    }
 }
 
 struct EpisodeTranslation: Codable, Hashable {
     let translator_id: Int
-    let translator_name: String
+    var translator_name: String?
     let premium: Bool
 }
 

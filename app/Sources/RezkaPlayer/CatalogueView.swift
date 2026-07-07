@@ -156,8 +156,7 @@ struct CatalogueView: View {
 
     @ViewBuilder private var mainContent: some View {
         if loading && items.isEmpty {
-            CenteredMessage(systemImage: "hourglass", title: "Loading…")
-                .frame(minHeight: 400)
+            SkeletonPosterGrid()
         } else if let error, items.isEmpty {
             CenteredMessage(systemImage: "exclamationmark.triangle",
                             title: "Couldn't load", subtitle: error)

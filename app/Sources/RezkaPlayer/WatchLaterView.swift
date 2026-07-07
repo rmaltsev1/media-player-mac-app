@@ -8,8 +8,13 @@ struct WatchLaterView: View {
             if state.bookmarks.items.isEmpty {
                 CenteredMessage(systemImage: "star",
                                 title: "Nothing saved yet",
-                                subtitle: "Tap the ☆ on a title (or right-click a poster) to save it here for later.")
-                    .frame(minHeight: 420)
+                                subtitle: "Tap the ☆ on a title (or right-click a poster) to save it here for later.") {
+                    Button { state.pendingSection = .films } label: {
+                        Label("Browse Films", systemImage: "film")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(minHeight: 420)
             } else {
                 PosterGrid(items: state.bookmarks.items)
             }

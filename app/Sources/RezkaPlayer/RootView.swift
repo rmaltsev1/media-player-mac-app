@@ -75,9 +75,13 @@ struct RootView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(SidebarSection.allCases, selection: $selection) { section in
-                Label(section.title, systemImage: section.systemImage)
-                    .tag(section)
+            List(selection: $selection) {
+                Section("Browse") {
+                    ForEach([SidebarSection.home, .films, .series, .cartoons, .animation]) { row($0) }
+                }
+                Section("Library") {
+                    ForEach([SidebarSection.search, .watchLater, .history, .downloads]) { row($0) }
+                }
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 210)
             .safeAreaInset(edge: .bottom) { SidecarStatusBar() }
@@ -106,6 +110,22 @@ struct RootView: View {
             guard let item = newValue else { return }
             path.append(item)
             state.pendingItem = nil
+        }
+    }
+
+    /// A sidebar row with an optional trailing count badge.
+    @ViewBuilder private func row(_ section: SidebarSection) -> some View {
+        Label(section.title, systemImage: section.systemImage)
+            .badge(badgeCount(section))
+            .tag(section)
+    }
+
+    /// Trailing badge value per section (0 hides the badge automatically).
+    private func badgeCount(_ section: SidebarSection) -> Int {
+        switch section {
+        case .watchLater: return state.bookmarks.items.count
+        case .downloads:  return state.downloads.items.filter { $0.state == .downloading }.count
+        default:          return 0
         }
     }
 

@@ -25,10 +25,13 @@ struct DetailView: View {
     @State private var seasonDone = 0
     @State private var seasonTotal = 0
 
+    // Header description clamp
+    @State private var descExpanded = false
+
     var body: some View {
         ScrollView {
             if loading {
-                CenteredMessage(systemImage: "hourglass", title: "Loading…").frame(minHeight: 400)
+                detailSkeleton
             } else if let loadError {
                 CenteredMessage(systemImage: "exclamationmark.triangle",
                                 title: "Couldn't load title", subtitle: loadError).frame(minHeight: 400)
@@ -81,30 +84,7 @@ struct DetailView: View {
 
     @ViewBuilder private func content(_ info: TitleInfo) -> some View {
         VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .top, spacing: 20) {
-                PosterImage(urlString: info.thumbnail ?? item.image)
-                    .frame(width: 220, height: 320)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(info.name).font(.title).bold()
-                    if let orig = info.origName, orig != info.name {
-                        Text(orig).font(.title3).foregroundStyle(.secondary)
-                    }
-                    HStack(spacing: 12) {
-                        if let y = info.releaseYear { Badge(text: String(y), system: "calendar") }
-                        if let r = info.rating { Badge(text: String(format: "%.2f", r.value), system: "star.fill") }
-                        if let c = info.category?.name { Badge(text: c.capitalized, system: "tag") }
-                        Badge(text: info.isSeries ? "Series" : "Movie",
-                              system: info.isSeries ? "tv" : "film")
-                    }
-                    if let desc = info.description {
-                        Text(desc).font(.body).foregroundStyle(.secondary).padding(.top, 4)
-                    }
-                    Spacer()
-                }
-                Spacer(minLength: 0)
-            }
+            header(info)
 
             if let similar = info.similar, !similar.isEmpty {
                 Divider()
@@ -113,6 +93,114 @@ struct DetailView: View {
 
             Divider()
             playbackSection(info)
+        }
+        .padding(24)
+    }
+
+    /// Cinematic header: blurred backdrop, poster, metadata, and an above-the-fold Play CTA.
+    @ViewBuilder private func header(_ info: TitleInfo) -> some View {
+        HStack(alignment: .top, spacing: 20) {
+            PosterImage(urlString: info.thumbnail ?? item.image)
+                .frame(width: 220, height: 320)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius))
+                .shadow(color: .black.opacity(0.4), radius: 12, y: 6)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(info.name).font(.title).bold()
+                if let orig = info.origName, orig != info.name {
+                    Text(orig).font(.title3).foregroundStyle(.secondary)
+                }
+                HStack(spacing: 12) {
+                    if let y = info.releaseYear { Badge(text: String(y), system: "calendar") }
+                    if let r = info.rating { Badge(text: String(format: "%.2f", r.value), system: "star.fill") }
+                    if let c = info.category?.name { Badge(text: c.capitalized, system: "tag") }
+                    Badge(text: info.isSeries ? "Series" : "Movie",
+                          system: info.isSeries ? "tv" : "film")
+                }
+
+                headerPlayButton(info).padding(.top, 4)
+
+                if let desc = info.description, !desc.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(desc).font(.body).foregroundStyle(.secondary)
+                            .lineLimit(descExpanded ? nil : 3)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if desc.count > 180 {
+                            Button(descExpanded ? "Show less" : "Show more") {
+                                withAnimation(.easeInOut(duration: 0.2)) { descExpanded.toggle() }
+                            }
+                            .buttonStyle(.link).font(.caption)
+                        }
+                    }
+                    .padding(.top, 2)
+                }
+                Spacer(minLength: 0)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .background(backdrop(info))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius))
+        .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius)
+            .strokeBorder(.white.opacity(0.06)))
+    }
+
+    /// Blurred, scrimmed poster art filling the header card behind the content.
+    @ViewBuilder private func backdrop(_ info: TitleInfo) -> some View {
+        CachedAsyncImage(url: URL(string: info.thumbnailHQ ?? info.thumbnail ?? item.image ?? "")) { image in
+            image.resizable().scaledToFill()
+                .blur(radius: 34)
+                .opacity(0.42)
+                .overlay(LinearGradient(
+                    colors: [.black.opacity(0.15), .black.opacity(0.45)],
+                    startPoint: .top, endPoint: .bottom))
+        } placeholder: { _ in Color(nsColor: .quaternarySystemFill) }
+        .background(Color(nsColor: .quaternarySystemFill))
+    }
+
+    /// The primary above-the-fold action: Play / Continue once the stream resolves,
+    /// a preparing state while it loads, or a retry on error.
+    @ViewBuilder private func headerPlayButton(_ info: TitleInfo) -> some View {
+        if let stream, let target = playerTarget(stream) {
+            let resuming = resumePosition > 5
+            let seTag = seasonEpisodeTag.map { " · \($0)" } ?? ""
+            NavigationLink(value: target) {
+                Label(resuming ? "Continue\(seTag)" : (info.isSeries ? "Play\(seTag)" : "Play"),
+                      systemImage: "play.fill")
+                    .font(.headline).frame(minWidth: 150).padding(.vertical, 4)
+            }
+            .buttonStyle(.borderedProminent).controlSize(.large)
+        } else if streamLoading {
+            Button {} label: {
+                HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Preparing…") }
+                    .frame(minWidth: 150).padding(.vertical, 4)
+            }
+            .buttonStyle(.borderedProminent).controlSize(.large).disabled(true)
+        } else if streamError != nil {
+            Button { Task { await refetch() } } label: {
+                Label("Retry", systemImage: "arrow.clockwise")
+                    .frame(minWidth: 150).padding(.vertical, 4)
+            }
+            .buttonStyle(.bordered).controlSize(.large)
+        }
+    }
+
+    /// Skeleton shown while the title's metadata loads.
+    private var detailSkeleton: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top, spacing: 20) {
+                SkeletonBox(cornerRadius: Theme.cardRadius).frame(width: 220, height: 320)
+                VStack(alignment: .leading, spacing: 12) {
+                    SkeletonBox(cornerRadius: 6).frame(width: 260, height: 26)
+                    SkeletonBox(cornerRadius: 6).frame(width: 160, height: 16)
+                    SkeletonBox(cornerRadius: 6).frame(width: 320, height: 14)
+                    SkeletonBox(cornerRadius: 8).frame(width: 150, height: 34).padding(.top, 6)
+                    SkeletonBox(cornerRadius: 6).frame(height: 60).frame(maxWidth: .infinity)
+                    Spacer()
+                }
+                Spacer()
+            }
+            .frame(height: 320)
         }
         .padding(24)
     }
@@ -187,7 +275,7 @@ struct DetailView: View {
                 })
             ) {
                 ForEach(translators) { t in
-                    Text(t.premium ? "\(t.name) ★" : t.name).tag(Optional(t.id))
+                    Text(t.premium ? "\(t.displayName) ★" : t.displayName).tag(Optional(t.id))
                 }
             }
             .frame(maxWidth: 360)

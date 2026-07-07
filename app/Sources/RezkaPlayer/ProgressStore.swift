@@ -71,6 +71,14 @@ final class ProgressStore: ObservableObject {
 
     func entry(id: String) -> Entry? { items.first { $0.id == id } }
 
+    /// Resume fraction (0…1) to draw on a poster tile for `pageURL`, or nil when there's no
+    /// meaningful unfinished progress. Uses the most-recent entry for the page (any episode).
+    func fraction(forPage pageURL: String) -> Double? {
+        guard let e = latestForPage(pageURL), !e.finished,
+              e.duration > 0, e.position > 30 else { return nil }
+        return min(1, max(0, e.position / e.duration))
+    }
+
     /// Resumable, recently-watched entries (unfinished, meaningfully started), newest first.
     func recent(limit: Int = 30) -> [Entry] {
         items.filter { !$0.finished && $0.position > 30 }
