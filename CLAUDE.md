@@ -120,6 +120,22 @@ Mac, and the Mac fetches the CDN out over its own connection (VPN/proxy), exactl
 Position is preserved across the swap; local downloaded files are left alone (AVPlayer streams those
 to the receiver from the Mac already). Requires the `0.0.0.0` bind above so the TV can reach the relay.
 
+## Anubis anti-bot gateway
+
+HDRezka's mirrors sit behind [Anubis](https://github.com/TecharoHQ/anubis) (`hdrezka.ag` now
+301s to `hdrezka-home.tv`). Every page/AJAX request first returns a **200-OK proof-of-work
+challenge page** (title "Проверяем, что вы не бот!") instead of real HTML — so parsers see no
+`.b-content__inline_item` and the app shows a misleading **"Nothing here yet"** empty state
+(not "Couldn't load", since no exception is raised). `sidecar/anubis.py` handles this
+transparently: `install()` (called at the top of `server.py`, before any request)
+monkeypatches `requests.Session.request` so *all* sidecar traffic — our `browse` module **and**
+the vendored `hdrezka` library, with no edits to either — detects a challenge, solves the
+"fast" SHA-256 PoW (`sha256(randomData + nonce)` with `difficulty` leading zero nibbles),
+GETs `…/api/pass-challenge`, caches the `techaro.lol-anubis-auth` cookie per host, and retries
+once. Streamed requests (the `/relay` CDN pull, `stream=True`) are passed through untouched.
+The cache self-heals: an expired cookie just yields a fresh challenge that gets re-solved. If
+HDRezka bumps Anubis to a GPU/non-`fast` algorithm, `_solve_pow` needs updating.
+
 ## Known gotcha — streaming is IP-gated
 
 HDRezka's CDN returns `success:true` but `url:false` for **every** translation from a

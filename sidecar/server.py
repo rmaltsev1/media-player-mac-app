@@ -37,6 +37,12 @@ import requests
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import anubis
+# Transparently clear HDRezka's Anubis proof-of-work anti-bot gateway on every request the
+# sidecar makes (scraping only; the streamed /relay pull is left untouched). Must run before
+# any hdrezka/browse request is issued. See anubis.py.
+anubis.install()
+
 from hdrezka.api import HdRezkaApi
 from hdrezka.search import HdRezkaSearch
 from hdrezka.types import TVSeries, Movie, default_headers
