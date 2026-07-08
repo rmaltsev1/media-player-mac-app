@@ -182,10 +182,17 @@ class HdRezkaApi():
 		translators = self.soup.find(id="translators-list")
 		if translators:
 			for child in translators.findChildren(recursive=False):
-				id = int(child.attrs['data-translator_id'])
-				name = child.text.strip()
-				premium = 'b-prem_translator' in child['class']
-				img = child.find('img')
+				# VENDOR PATCH: HDRezka moved the translator attributes
+				# (data-translator_id / class) off the <li> and onto a nested
+				# <a class="b-translator__item">. Resolve the node that actually
+				# carries them; support both layouts and skip non-translator items.
+				node = child if child.has_attr('data-translator_id') else child.find(attrs={'data-translator_id': True})
+				if not node:
+					continue
+				id = int(node.attrs['data-translator_id'])
+				name = node.text.strip()
+				premium = 'b-prem_translator' in (node.get('class') or [])
+				img = node.find('img')
 				if img:
 					lang = img.attrs.get('title')
 					if not lang in name:

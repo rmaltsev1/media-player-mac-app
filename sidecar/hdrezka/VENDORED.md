@@ -24,3 +24,9 @@ Search for `VENDOR PATCH` in this folder. Current patches:
   `success:true, url:false`. `makeRequest` also now raises a descriptive `FetchFailed` message
   (geo-restriction / login / premium hints) instead of a bare "Failed to fetch stream!".
 - **errors.py `FetchFailed`** — accepts an optional message (for the diagnostics above).
+- **api.py `translators`** — HDRezka moved the translator attributes (`data-translator_id`,
+  `class`) off the `#translators-list` `<li>` and onto a nested `<a class="b-translator__item">`.
+  Resolve the node that actually carries `data-translator_id` (supporting both the old `<li>` layout
+  and the new nested `<a>` layout) and skip children without it, instead of blindly reading
+  `child.attrs['data-translator_id']` — which raised `KeyError` and broke `/info` entirely for such
+  titles (surfaced in-app as "Couldn't load title — missing field: 'data-translator_id'").
