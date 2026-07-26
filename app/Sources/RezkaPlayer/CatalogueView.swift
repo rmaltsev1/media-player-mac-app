@@ -183,7 +183,10 @@ struct CatalogueView: View {
     private var continueItems: [CatalogueItem] {
         var seen = Set<String>()
         var out: [CatalogueItem] = []
-        for e in state.progress.recent() where !seen.contains(e.pageURL) {
+        // Only real page URLs are navigable — a tile whose URL isn't an HDRezka page can't load a
+        // title, so skip it rather than pushing a detail view that 404s.
+        for e in state.progress.recent()
+        where e.pageURL.hasPrefix("http") && !seen.contains(e.pageURL) {
             seen.insert(e.pageURL)
             out.append(CatalogueItem(
                 title: e.title, url: e.pageURL, image: e.posterURL,

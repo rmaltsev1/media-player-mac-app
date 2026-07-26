@@ -64,6 +64,10 @@ struct PlayerTarget: Hashable {
     var originalTitle: String? = nil
     var year: Int? = nil
 
+    /// For local playback: which download this is, so the player can find the next downloaded
+    /// episode. Nil for streams, which use `episodeList` instead.
+    var downloadID: UUID? = nil
+
     /// Whether this target is a series (true when a season/episode is set).
     var isSeries: Bool { season != nil || episode != nil }
 }

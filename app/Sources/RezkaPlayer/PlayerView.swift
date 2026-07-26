@@ -22,6 +22,12 @@ struct PlayerView: View {
     @State private var curQuality: String?
     @State private var curResumeAt: Double = 0
     @State private var isExternal = false
+    /// Which download is playing, for local next-episode lookups (nil while streaming).
+    @State private var curDownloadID: UUID?
+    /// Display title of the *currently playing* item; advances with the episode.
+    @State private var curTitle = ""
+    /// Guards against double-advancing (end-of-playback firing while a manual skip is in flight).
+    @State private var advancing = false
 
     @State private var overlayText: String?
     @State private var overlayVisible = false
@@ -56,7 +62,22 @@ struct PlayerView: View {
                 CenteredMessage(systemImage: "play.slash", title: "Can't play this stream")
             }
         }
-        .navigationTitle(target.title)
+        .navigationTitle(curTitle.isEmpty ? target.title : curTitle)
+        .toolbar {
+            // "Next Episode", Netflix-style. In the window toolbar rather than overlaid on the
+            // video, so it can't collide with AVKit's own inline controls (volume/PiP/full-screen).
+            if hasNextEpisode {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        advanceToNextEpisode(auto: false)
+                    } label: {
+                        Label("Next Episode", systemImage: "forward.end.fill")
+                    }
+                    .disabled(advancing)
+                    .help("Play the next episode")
+                }
+            }
+        }
         .onAppear(perform: setup)
         .onDisappear(perform: teardown)
     }
@@ -70,6 +91,8 @@ struct PlayerView: View {
         curTranslatorId = target.translatorId
         curQuality = target.quality
         curResumeAt = target.resumeAt
+        curDownloadID = target.downloadID
+        curTitle = target.title
 
         guard let item = makeItem(cdnURLString: target.urlString, isLocal: target.isLocal) else { return }
         let p = AVPlayer(playerItem: item)
@@ -97,6 +120,12 @@ struct PlayerView: View {
 
     private func makeItem(cdnURLString: String, isLocal: Bool) -> AVPlayerItem? {
         if isLocal {
+            // While AirPlay is active the receiver fetches the URL itself, so hand it the sidecar's
+            // /media URL — a file:// path is unusable to it. Matters when advancing episodes mid-cast.
+            if isExternal, let s = state.localMediaURLString(forFilePath: cdnURLString),
+               let url = URL(string: s) {
+                return AVPlayerItem(url: url)
+            }
             return AVPlayerItem(url: URL(fileURLWithPath: cdnURLString))
         }
         // Route remote streams through the Mac's LAN-IP relay for BOTH local playback and AirPlay:
@@ -145,14 +174,15 @@ struct PlayerView: View {
         isExternal = active
         showOverlay(active ? "AirPlay — playing on TV" : "Playing on this Mac")
 
-        guard target.isLocal, let p = player else { return }
+        // Use the *currently playing* file, which may have advanced past the pushed target.
+        guard target.isLocal, let p = player, let path = currentLocalPath else { return }
         let swapped: AVPlayerItem
         if active {
-            guard let s = state.localMediaURLString(forFilePath: target.urlString),
+            guard let s = state.localMediaURLString(forFilePath: path),
                   let url = URL(string: s) else { return }   // no LAN IP: leave playback as-is
             swapped = AVPlayerItem(url: url)
         } else {
-            swapped = AVPlayerItem(url: URL(fileURLWithPath: target.urlString))
+            swapped = AVPlayerItem(url: URL(fileURLWithPath: path))
         }
 
         let resumeAt = p.currentTime()
@@ -234,20 +264,77 @@ struct PlayerView: View {
             }
         }
 
-        autoplayNextIfPossible()
+        advanceToNextEpisode(auto: true)
     }
 
-    private func autoplayNextIfPossible() {
-        guard let pageURL = target.pageURL,
-              let list = target.episodeList,
-              let cur = curEpisode,
-              let idx = list.firstIndex(of: cur),
-              idx + 1 < list.count else { return }
-        let next = list[idx + 1]
+    // MARK: Next episode (streamed + downloaded)
+
+    /// File path of the local item actually playing — follows episode advances, unlike
+    /// `target.urlString`, which stays pinned to whatever was pushed.
+    private var currentLocalPath: String? {
+        guard target.isLocal else { return nil }
+        if let id = curDownloadID, let item = state.downloads.item(withID: id) {
+            return state.downloads.localURL(for: item).path
+        }
+        return target.urlString
+    }
+
+    /// Next downloaded episode of this series, or nil.
+    private func nextDownload() -> DownloadItem? {
+        guard let id = curDownloadID, let cur = state.downloads.item(withID: id) else { return nil }
+        return state.downloads.nextDownloadedEpisode(after: cur)
+    }
+
+    /// Next episode number in the streamed season's list, or nil.
+    private func nextStreamEpisode() -> Int? {
+        guard target.pageURL != nil, let list = target.episodeList, let cur = curEpisode,
+              let idx = list.firstIndex(of: cur), idx + 1 < list.count else { return nil }
+        return list[idx + 1]
+    }
+
+    /// Drives the toolbar button's visibility; recomputes as episodes advance.
+    private var hasNextEpisode: Bool {
+        target.isLocal ? nextDownload() != nil : nextStreamEpisode() != nil
+    }
+
+    /// Play the next episode — from end-of-playback (`auto: true`) or the toolbar button.
+    private func advanceToNextEpisode(auto: Bool) {
+        guard !advancing else { return }
+        if target.isLocal {
+            guard let next = nextDownload() else { return }
+            advancing = true
+            play(downloaded: next)
+        } else {
+            guard let next = nextStreamEpisode() else { return }
+            advancing = true
+            play(streamedEpisode: next)
+        }
+    }
+
+    private func play(downloaded next: DownloadItem) {
+        defer { advancing = false }
+        guard let p = player,
+              let item = makeItem(cdnURLString: state.downloads.localURL(for: next).path,
+                                  isLocal: true) else { return }
+        // Advance bookkeeping so a further "next" (and the AirPlay swap) uses the new episode.
+        curDownloadID = next.id
+        curTitle = next.title
+        didSeekResume = true       // no resume for a freshly-started next episode
+        curResumeAt = 0
+
+        observeEnd(of: item)
+        p.replaceCurrentItem(with: item)
+        p.play()
+        showOverlay("Playing \(next.seasonEpisode ?? next.title)…")
+    }
+
+    private func play(streamedEpisode next: Int) {
+        guard let pageURL = target.pageURL else { advancing = false; return }
         let season = curSeason
         let translator = curTranslatorId
 
         Task { @MainActor in
+            defer { advancing = false }
             do {
                 let s = try await state.api.stream(
                     url: pageURL, translation: translator, season: season, episode: next)
@@ -263,7 +350,7 @@ struct PlayerView: View {
                 // Advance bookkeeping so progress + further autoplay use the new episode.
                 curEpisode = next
                 curQuality = q
-                didSeekResume = true   // no resume for a freshly-started next episode
+                didSeekResume = true
                 curResumeAt = 0
 
                 observeEnd(of: item)
@@ -271,7 +358,7 @@ struct PlayerView: View {
                 p.play()
                 showOverlay("Playing S\(season ?? 0)E\(next)…")
             } catch {
-                // No next episode resolvable — just stop.
+                showOverlay("Couldn't load the next episode")
             }
         }
     }

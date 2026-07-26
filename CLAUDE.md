@@ -58,6 +58,16 @@ Packaged DMG: `./scripts/package.sh` → `build/RezkaPlayer.dmg` (see Packaging 
   PATCH`-marked edits (documented in `sidecar/hdrezka/VENDORED.md` — currently: movie CDN flags, the
   `favs` token, and a richer `FetchFailed`). Our own features go in `sidecar/browse.py` /
   `server.py`, never inside `hdrezka/`.
+- **Next episode:** `PlayerView.advanceToNextEpisode(auto:)` serves both the toolbar button and
+  end-of-playback auto-advance, for streams (walk `target.episodeList`) *and* downloads
+  (`DownloadManager.nextDownloadedEpisode(after:)` — next completed episode in the season, else the
+  first of a later season). The button lives in the **window toolbar**, not overlaid on the video:
+  AVKit owns the video's corners (volume/PiP/full-screen) and an overlay collides with them.
+- **Local playback carries page context.** A local `PlayerTarget` sets `pageURL`, `season`/`episode`
+  and `downloadID`, not just the file path. Progress is keyed on the page URL, so without it
+  Continue Watching stored a *media file path* as the page URL and then 404'd trying to load the
+  title; carrying it also means a downloaded episode shares progress/watched/Trakt state with the
+  streamed one. `ProgressStore.repairLocalFilePathEntries` migrates entries written by older builds.
 - **Player:** uses AppKit `AVPlayerView` via `NSViewRepresentable` (`PlayerView.swift`). **Do not use
   SwiftUI `VideoPlayer`** — it crashes during view-metadata instantiation on macOS 26.
 

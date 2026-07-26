@@ -106,6 +106,47 @@ final class ProgressStore: ObservableObject {
         save()
     }
 
+    /// One-time repair. Progress recorded while playing a *downloaded* file used to store the media
+    /// **file path** in `pageURL` (local targets carried no page URL), so Continue Watching asked
+    /// HDRezka to load `/Users/…/Media/….mp4` and failed with "Couldn't load title — 404".
+    /// `resolve` maps a file path back to its real page + episode. Entries it can't resolve (the
+    /// download was since deleted, so the original page is unrecoverable) are left untouched rather
+    /// than deleted — the Continue Watching row skips non-page URLs, so they simply stay hidden.
+    func repairLocalFilePathEntries(
+        resolve: (String) -> (pageURL: String, season: Int?, episode: Int?)?
+    ) {
+        guard items.contains(where: { !$0.pageURL.hasPrefix("http") }) else { return }
+        var changed = false
+
+        var byID: [String: Entry] = [:]
+        var order: [String] = []
+        func put(_ e: Entry) {
+            if let existing = byID[e.id] {
+                // Same episode watched both ways (streamed *and* downloaded): keep the newer.
+                if e.updatedAt > existing.updatedAt { byID[e.id] = e }
+            } else {
+                byID[e.id] = e
+                order.append(e.id)
+            }
+        }
+
+        for e in items {
+            guard !e.pageURL.hasPrefix("http") else { put(e); continue }
+            guard let r = resolve(e.pageURL) else { put(e); continue }   // unresolvable: keep, hidden
+            let season = e.season ?? r.season
+            let episode = e.episode ?? r.episode
+            changed = true
+            put(Entry(id: Self.key(pageURL: r.pageURL, season: season, episode: episode),
+                      title: e.title, pageURL: r.pageURL, posterURL: e.posterURL,
+                      season: season, episode: episode, translatorId: e.translatorId,
+                      quality: e.quality, position: e.position, duration: e.duration,
+                      updatedAt: e.updatedAt, finished: e.finished))
+        }
+        guard changed else { return }
+        items = order.compactMap { byID[$0] }
+        save()
+    }
+
     // MARK: Persistence
 
     private var file: URL {

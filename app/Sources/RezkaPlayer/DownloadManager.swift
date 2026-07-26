@@ -23,6 +23,15 @@ struct DownloadItem: Codable, Identifiable, Hashable {
     var progress: Double {
         totalBytes > 0 ? Double(bytesReceived) / Double(totalBytes) : 0
     }
+
+    /// `"S1E3"` → `(season: 1, episode: 3)`; nil for movies (or an unparseable label).
+    var seasonEpisodeNumbers: (season: Int, episode: Int)? {
+        guard let se = seasonEpisode, se.hasPrefix("S"),
+              let eIdx = se.firstIndex(of: "E"),
+              let season = Int(se[se.index(after: se.startIndex)..<eIdx]),
+              let episode = Int(se[se.index(after: eIdx)...]) else { return nil }
+        return (season, episode)
+    }
 }
 
 @MainActor
@@ -70,6 +79,36 @@ final class DownloadManager: NSObject, ObservableObject {
         return d
     }
     private var libraryFile: URL { appSupportDir.appendingPathComponent("library.json") }
+
+    func item(withID id: UUID) -> DownloadItem? {
+        items.first { $0.id == id }
+    }
+
+    /// The next *downloaded* episode of the same series after `item`: the nearest higher episode in
+    /// the same season, else the first episode of the nearest later season. Only completed
+    /// downloads qualify — "next episode" has to be watchable offline to be worth offering.
+    func nextDownloadedEpisode(after item: DownloadItem) -> DownloadItem? {
+        guard let cur = item.seasonEpisodeNumbers else { return nil }
+        let siblings = items.filter {
+            $0.state == .completed && $0.pageURL == item.pageURL && $0.seasonEpisodeNumbers != nil
+        }
+        // Same season, next episode up.
+        let sameSeason = siblings
+            .compactMap { s -> (DownloadItem, Int)? in
+                guard let n = s.seasonEpisodeNumbers, n.season == cur.season,
+                      n.episode > cur.episode else { return nil }
+                return (s, n.episode)
+            }
+            .min { $0.1 < $1.1 }
+        if let next = sameSeason?.0 { return next }
+        // Otherwise roll over to the earliest episode of the next season we have.
+        return siblings
+            .compactMap { s -> (DownloadItem, Int, Int)? in
+                guard let n = s.seasonEpisodeNumbers, n.season > cur.season else { return nil }
+                return (s, n.season, n.episode)
+            }
+            .min { ($0.1, $0.2) < ($1.1, $1.2) }?.0
+    }
 
     func localURL(for item: DownloadItem) -> URL {
         mediaDir.appendingPathComponent(item.fileName)

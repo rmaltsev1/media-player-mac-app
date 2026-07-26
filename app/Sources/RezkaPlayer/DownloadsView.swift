@@ -52,10 +52,18 @@ private struct DownloadRow: View {
             Spacer()
 
             if item.state == .completed {
+                // Carry the HDRezka page + episode numbers even though playback is local: progress
+                // is keyed on them, so without them Continue Watching recorded the *file path* as a
+                // page URL and later failed to load the title (404).
                 NavigationLink(value: PlayerTarget(
                     title: item.title,
                     urlString: state.downloads.localURL(for: item).path,
-                    isLocal: true)
+                    isLocal: true,
+                    pageURL: item.pageURL,
+                    season: item.seasonEpisodeNumbers?.season,
+                    episode: item.seasonEpisodeNumbers?.episode,
+                    posterURL: item.posterURL,
+                    downloadID: item.id)
                 ) {
                     Image(systemName: "play.circle.fill").font(.title2)
                 }

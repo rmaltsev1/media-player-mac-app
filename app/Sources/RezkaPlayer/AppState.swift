@@ -123,6 +123,15 @@ final class AppState: ObservableObject {
         // Apply the saved storage cap (enforced after each completed download).
         downloads.capBytes = Self.bytes(fromGB: maxStorageGB)
 
+        // Repair Continue Watching entries written by older builds, which stored a media file path
+        // instead of the HDRezka page URL for downloaded playback (see ProgressStore).
+        progress.repairLocalFilePathEntries { [downloads] path in
+            let name = (path as NSString).lastPathComponent
+            guard let item = downloads.items.first(where: { $0.fileName == name }) else { return nil }
+            return (item.pageURL, item.seasonEpisodeNumbers?.season,
+                    item.seasonEpisodeNumbers?.episode)
+        }
+
         // Re-publish sidecar state changes so views observing AppState refresh.
         sidecar.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }

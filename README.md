@@ -18,7 +18,8 @@ in-tree when HDRezka changes.
 - **Stream in-app** with a native AVKit player — pick the **translation** (dub/voiceover/subs) and
   **resolution** (360p–1080p Ultra). Series get season/episode pickers.
 - **Continue Watching** row + **resume from where you left off**.
-- **Auto-play the next episode** of a series.
+- **Next episode** — a toolbar button in the player, plus auto-advance when an episode ends. Works
+  for streamed series *and* downloaded ones (downloads chain through the episodes you have).
 - **AirPlay to a TV** — streams *and* downloaded files, served to the TV from your Mac over its LAN
   IP, so playback keeps working even when the title is geo-blocked / behind your Mac's VPN. Pick an
   AirPlay route in the player (this is real AirPlay, not screen mirroring — your Mac stays free).
