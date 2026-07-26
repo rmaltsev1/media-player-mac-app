@@ -82,7 +82,8 @@ are an enum in `RootView.swift` (`sectionRoot` switch). The menu bar + notificat
 
 ## Sidecar endpoints
 
-POST + JSON (except `GET /health`, `GET /relay`). Body includes `origin`; may include `cookies`,
+POST + JSON (except `GET /health`, `GET /relay`, `GET /media`; all three also answer `HEAD`).
+Body includes `origin`; may include `cookies`,
 `proxy`, `headers`.
 
 | Endpoint   | Body                                                        | Returns |
@@ -95,6 +96,7 @@ POST + JSON (except `GET /health`, `GET /relay`). Body includes `origin`; may in
 | `/stream`  | `url`, `translation?`, `season?`, `episode?`               | `{videos: {quality:[urls]}, subtitles, ...}` |
 | `/login`   | `email`, `password` (+ `origin`)                           | `{ok, cookies?, message?}` |
 | `GET /relay` | query: `u`=b64url(cdn), `t`=token, `r`=b64url(origin)     | streams the video (Range-aware) through the configured proxy |
+| `GET /media` | query: `f`=b64url(base name), `t`=token                   | streams a completed download from `Media/` (Range-aware) — lets an AirPlay receiver fetch it |
 
 `browse` paths: genre → `/{cat}/{genre}/`; `sort=best` → `/{cat}/best/[{year}/]`;
 `last/popular/soon/watching` → `?filter=…`. Genre slugs + sort options come from `browse.GENRES`/
@@ -112,13 +114,28 @@ so DNS resolves at the proxy).
 ### AirPlay (LAN relay)
 
 AVPlayer's **external-playback** (AirPlay) mode hands the *video URL to the TV* and the TV fetches it
-itself — so a `127.0.0.1` relay URL (TV can't reach loopback) or a geo-blocked CDN URL (the TV isn't
-behind the Mac's VPN) both fail. Fix: when `AVPlayer.isExternalPlaybackActive` flips (observed in
-`PlayerView`), rebuild the current remote item against `AppState.airplayURLString` — a `/relay` URL
-on the **Mac's LAN IP** (`LANAddress.primaryIPv4()`) instead of loopback. The TV then pulls from the
-Mac, and the Mac fetches the CDN out over its own connection (VPN/proxy), exactly like local playback.
-Position is preserved across the swap; local downloaded files are left alone (AVPlayer streams those
-to the receiver from the Mac already). Requires the `0.0.0.0` bind above so the TV can reach the relay.
+itself. Three things follow, and all three are required — miss one and the TV just sits on its idle
+AirPlay screen while the Mac reports "playing on TV":
+
+1. **Never give the receiver a loopback URL.** Remote items always play through
+   `AppState.lanRelayURLString` — a `/relay` URL on the **Mac's LAN IP**
+   (`LANAddress.primaryIPv4()`), used for local playback *and* AirPlay. Beyond the TV being unable
+   to reach `127.0.0.1`, AVFoundation won't even offer a *video* AirPlay route for a loopback item
+   (you get an audio-only route, and `isExternalPlaybackActive` never flips). No source swap is
+   needed on engage, since the same URL serves both. Needs the `0.0.0.0` bind above.
+2. **The sidecar must answer `HEAD`.** AirPlay receivers probe the media URL with `HEAD` before
+   fetching it. `BaseHTTPRequestHandler` answers `501 Unsupported method` for anything without a
+   `do_*`, so the receiver gave up before ever issuing a `GET` — hence `do_HEAD` in `server.py`
+   (same routes, headers only).
+3. **Downloaded files need an HTTP URL too.** A `file://` path is meaningless to the TV, so when
+   external playback engages on a local item, `PlayerView` swaps in `AppState.localMediaURLString`
+   → `GET /media?f=<b64 basename>&t=…`, which serves the file out of `Media/` (Range-aware,
+   token-gated, base-name only). It swaps back to the local file when AirPlay disengages; position
+   is preserved both ways. Plain local playback stays a direct `file://` read.
+
+Verified against a Samsung Tizen receiver, which fetches the URL with a `SMART-TV; LINUX; Tizen`
+user-agent. Note this is *AirPlay*, not screen mirroring — mirroring never flips
+`isExternalPlaybackActive`, so none of the above applies to it.
 
 ## Anubis anti-bot gateway
 

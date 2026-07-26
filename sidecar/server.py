@@ -208,7 +208,7 @@ def h_info(body):
         "isSeries": api.type == TVSeries,
         "translators": [
             {"id": tid, "name": v["name"], "premium": v["premium"]}
-            for tid, v in api.translators.items()
+            for tid, v in (_safe(lambda: api.translators) or {}).items()
         ],
         "otherParts": _safe(lambda: api.otherParts) or [],
     }
@@ -291,6 +291,11 @@ RELAY_FORWARD = ("range",)
 # Upstream response headers we surface back to the client.
 RELAY_EXPOSE = ("content-type", "content-length", "content-range", "accept-ranges")
 
+# Where the app stores completed downloads. `GET /media` serves files from here (and only here)
+# so an AirPlay receiver can fetch a downloaded episode over the LAN — a `file://` URL means
+# nothing to the TV. Keyed by base name; anything with a path separator is rejected.
+MEDIA_DIR = os.path.expanduser("~/Library/Application Support/RezkaPlayer/Media")
+
 
 # ---------- HTTP plumbing ----------
 
@@ -300,13 +305,14 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):  # quieter logs
         sys.stderr.write("[sidecar] " + (args[0] % args[1:]) + "\n")
 
-    def _send(self, code, payload):
+    def _send(self, code, payload, with_body=True):
         body = json.dumps(payload).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        if with_body:                      # HEAD: headers only, per RFC 9110
+            self.wfile.write(body)
 
     def _authed(self):
         if not AUTH_TOKEN:
@@ -319,22 +325,107 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, h_health({}))
         if path == "/relay":
             return self._relay()
+        if path == "/media":
+            return self._media()
         return self._send(404, {"error": "not found"})
 
-    def _relay(self):
-        """Stream a CDN video to the client through the configured proxy, forwarding Range
-        requests so AVPlayer can seek. This is how playback/downloads egress via the proxy."""
+    def do_HEAD(self):
+        """Same routes as GET but headers only. AirPlay receivers (Apple TV, smart TVs) probe a
+        media URL with HEAD before fetching it — without this, BaseHTTPRequestHandler answers
+        `501 Unsupported method` and the receiver gives up, so the TV never plays the video."""
+        path = self.path.split("?")[0]
+        if path == "/health":
+            return self._send(200, h_health({}), with_body=False)
+        if path == "/relay":
+            return self._relay(with_body=False)
+        if path == "/media":
+            return self._media(with_body=False)
+        return self._send(404, {"error": "not found"}, with_body=False)
+
+    def _media(self, with_body=True):
+        """Serve a completed download from MEDIA_DIR over HTTP, Range-aware, so an AirPlay
+        receiver can pull it from this Mac (a `file://` URL is unusable by the TV). Only base
+        names inside MEDIA_DIR are served, and the per-launch token is required."""
         q = parse_qs(urlparse(self.path).query)
         token = (q.get("t") or [None])[0]
         if AUTH_TOKEN and token != AUTH_TOKEN and self.headers.get("X-Auth-Token") != AUTH_TOKEN:
-            return self._send(401, {"error": "unauthorized"})
+            return self._send(401, {"error": "unauthorized"}, with_body=with_body)
+        raw_f = (q.get("f") or [None])[0]
+        if not raw_f:
+            return self._send(400, {"error": "missing f"}, with_body=with_body)
+        try:
+            name = _b64url_decode(raw_f)
+        except Exception:
+            return self._send(400, {"error": "bad f"}, with_body=with_body)
+        # Base name only — no traversal, no absolute paths, and the result must stay in MEDIA_DIR.
+        if not name or name != os.path.basename(name):
+            return self._send(400, {"error": "bad name"}, with_body=with_body)
+        full = os.path.realpath(os.path.join(MEDIA_DIR, name))
+        if not full.startswith(os.path.realpath(MEDIA_DIR) + os.sep) or not os.path.isfile(full):
+            return self._send(404, {"error": "no such file"}, with_body=with_body)
+
+        size = os.path.getsize(full)
+        start, end = 0, size - 1
+        status = 200
+        rng = self.headers.get("Range")
+        if rng and rng.startswith("bytes="):
+            spec = rng[len("bytes="):].split(",")[0].strip()
+            try:
+                if spec.startswith("-"):                    # suffix range: last N bytes
+                    start, end = max(0, size - int(spec[1:])), size - 1
+                else:
+                    a, _, b = spec.partition("-")
+                    start = int(a)
+                    end = int(b) if b else size - 1
+            except ValueError:
+                return self._send(400, {"error": "bad range"}, with_body=with_body)
+            end = min(end, size - 1)
+            if start > end or start >= size:
+                self.send_response(416)
+                self.send_header("Content-Range", "bytes */%d" % size)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            status = 206
+
+        length = end - start + 1
+        self.send_response(status)
+        self.send_header("Content-Type", "video/mp4")
+        self.send_header("Content-Length", str(length))
+        self.send_header("Accept-Ranges", "bytes")
+        if status == 206:
+            self.send_header("Content-Range", "bytes %d-%d/%d" % (start, end, size))
+        self.end_headers()
+        if not with_body:
+            return
+        try:
+            with open(full, "rb") as fh:
+                fh.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = fh.read(min(64 * 1024, remaining))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # receiver seeked or stopped; normal
+
+    def _relay(self, with_body=True):
+        """Stream a CDN video to the client through the configured proxy, forwarding Range
+        requests so AVPlayer can seek. This is how playback/downloads egress via the proxy.
+        With `with_body=False` (HEAD) the upstream headers are relayed and the body skipped."""
+        q = parse_qs(urlparse(self.path).query)
+        token = (q.get("t") or [None])[0]
+        if AUTH_TOKEN and token != AUTH_TOKEN and self.headers.get("X-Auth-Token") != AUTH_TOKEN:
+            return self._send(401, {"error": "unauthorized"}, with_body=with_body)
         raw_u = (q.get("u") or [None])[0]
         if not raw_u:
-            return self._send(400, {"error": "missing u"})
+            return self._send(400, {"error": "missing u"}, with_body=with_body)
         try:
             target = _b64url_decode(raw_u)             # CDN url, base64url-encoded by the app
         except Exception:
-            return self._send(400, {"error": "bad u"})
+            return self._send(400, {"error": "bad u"}, with_body=with_body)
         raw_r = (q.get("r") or [None])[0]
         referer = _b64url_decode(raw_r) if raw_r else None
 
@@ -350,7 +441,7 @@ class Handler(BaseHTTPRequestHandler):
             upstream = requests.get(target, headers=headers, proxies=PROXY,
                                     stream=True, allow_redirects=True, timeout=(15, 60))
         except Exception as e:
-            return self._send(502, {"error": f"relay failed: {e}"})
+            return self._send(502, {"error": f"relay failed: {e}"}, with_body=with_body)
 
         try:
             self.send_response(upstream.status_code)
@@ -365,6 +456,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("Connection", "close")
                 self.close_connection = True
             self.end_headers()
+            if not with_body:
+                return                      # HEAD probe satisfied; don't pull the video
             for chunk in upstream.iter_content(64 * 1024):
                 if chunk:
                     self.wfile.write(chunk)

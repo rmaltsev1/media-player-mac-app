@@ -211,10 +211,25 @@ class HdRezkaApi():
 			def getTranslationID(s):
 				initCDNEvents = {'video.tv_series': 'initCDNSeriesEvents',
 								 'video.movie'    : 'initCDNMoviesEvents'}
-				tmp = s.text.split(f"sof.tv.{initCDNEvents[f'video.{self.type.name}']}")[-1].split("{")[0]
-				return int(tmp.split(",")[1].strip())
+				marker = f"sof.tv.{initCDNEvents[f'video.{self.type.name}']}"
+				# VENDOR PATCH: bail if the CDN-init call isn't on the page. Some
+				# titles have no player at all (e.g. upcoming/not-yet-released films
+				# that only show a release date). Upstream blindly split the entire
+				# HTML and int()'d the leading garbage — landing on the `<meta
+				# name="robots" content="index, follow" />` text — which raised
+				# "invalid literal for int() with base 10: 'follow' ...", sinking
+				# /info entirely ("Couldn't load title").
+				if marker not in s.text:
+					return None
+				tmp = s.text.split(marker)[-1].split("{")[0]
+				try:
+					return int(tmp.split(",")[1].strip())
+				except (IndexError, ValueError):
+					return None
 
-			arr[getTranslationID(self.page)] = {"name": getTranslationName(self.soup), "premium": False}
+			tid = getTranslationID(self.page)
+			if tid is not None:
+				arr[tid] = {"name": getTranslationName(self.soup), "premium": False}
 		return arr
 
 	def sort_translators(self, translators=None, priority=None, non_priority=None):

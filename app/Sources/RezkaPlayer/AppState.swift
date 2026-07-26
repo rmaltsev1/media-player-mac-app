@@ -273,12 +273,13 @@ final class AppState: ObservableObject {
         return comps.url!.absoluteString
     }
 
-    /// LAN-reachable relay URL for AirPlay. AVPlayer's external-playback mode hands the *URL* to
-    /// the TV and the TV fetches it itself — so a `127.0.0.1` relay or a geo-blocked CDN URL fails
-    /// (the TV can't reach loopback, and it isn't behind your Mac's VPN). This points the TV at the
-    /// sidecar on this Mac's LAN IP instead: the TV pulls from the Mac, and the Mac fetches the CDN
-    /// out over its own connection (VPN/proxy). Falls back to the normal URL if no LAN IP is found.
-    func airplayURLString(for cdnURL: String) -> String {
+    /// Relay URL on this Mac's **LAN IP** — used for all remote playback, not just AirPlay.
+    /// AVPlayer's external-playback mode hands the *URL* to the TV, which fetches it itself, so a
+    /// `127.0.0.1` relay is useless to the receiver; worse, AVFoundation won't even offer a video
+    /// AirPlay route for a loopback URL. A LAN URL works in both cases: the Mac plays it locally,
+    /// and the TV can pull the same URL while the Mac still egresses to the CDN via its own
+    /// VPN/proxy. Falls back to the loopback relay / direct CDN when there's no LAN IP.
+    func lanRelayURLString(for cdnURL: String) -> String {
         guard let port = sidecar.port, let ip = LANAddress.primaryIPv4(),
               var comps = URLComponents(string: "http://\(ip):\(port)/relay") else {
             return playbackURLString(for: cdnURL)
@@ -289,6 +290,19 @@ final class AppState: ObservableObject {
             URLQueryItem(name: "r", value: Self.b64url(origin)),
         ]
         return comps.url?.absoluteString ?? playbackURLString(for: cdnURL)
+    }
+
+    /// LAN-reachable URL for a *downloaded* file, served by the sidecar's `/media` endpoint. Used
+    /// when AirPlay engages on local playback: the receiver fetches the URL itself, so a `file://`
+    /// path is meaningless to it. Returns nil if there's no LAN IP / sidecar port to build one.
+    func localMediaURLString(forFilePath path: String) -> String? {
+        guard let port = sidecar.port, let ip = LANAddress.primaryIPv4(),
+              var comps = URLComponents(string: "http://\(ip):\(port)/media") else { return nil }
+        comps.queryItems = [
+            URLQueryItem(name: "f", value: Self.b64url((path as NSString).lastPathComponent)),
+            URLQueryItem(name: "t", value: sidecar.token),
+        ]
+        return comps.url?.absoluteString
     }
 
     /// URL-safe base64 without padding (matches the sidecar's `_b64url_decode`).

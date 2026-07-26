@@ -21,9 +21,6 @@ struct PlayerView: View {
     @State private var curTranslatorId: Int?
     @State private var curQuality: String?
     @State private var curResumeAt: Double = 0
-    // The raw CDN URL of the currently-playing remote item, so we can rebuild it against the
-    // LAN relay when AirPlay engages (the TV can't reach a 127.0.0.1 relay or the geo-blocked CDN).
-    @State private var curCDNURL: String?
     @State private var isExternal = false
 
     @State private var overlayText: String?
@@ -73,12 +70,14 @@ struct PlayerView: View {
         curTranslatorId = target.translatorId
         curQuality = target.quality
         curResumeAt = target.resumeAt
-        curCDNURL = target.isLocal ? nil : target.urlString
 
-        guard let item = makeItem(cdnURLString: target.urlString, isLocal: target.isLocal,
-                                  forExternal: false) else { return }
+        guard let item = makeItem(cdnURLString: target.urlString, isLocal: target.isLocal) else { return }
         let p = AVPlayer(playerItem: item)
-        // AirPlay (external playback) is allowed; we swap the source to the LAN relay when it engages.
+        // Remote streams play through this Mac's LAN-IP relay (see makeItem) — a LAN-routable URL an
+        // AirPlay receiver can also fetch. Because it isn't a 127.0.0.1 loopback (which a TV can
+        // never reach, so AVFoundation suppresses the video route), the item stays AirPlay-eligible
+        // and the player offers a real *video* route: selecting the TV plays it there, pulling from
+        // this Mac. No source swap needed — the same URL works locally and on the receiver.
         p.allowsExternalPlayback = true
         player = p
         attachObservers(to: p, item: item)
@@ -96,14 +95,15 @@ struct PlayerView: View {
 
     // MARK: Item construction
 
-    private func makeItem(cdnURLString: String, isLocal: Bool, forExternal: Bool) -> AVPlayerItem? {
+    private func makeItem(cdnURLString: String, isLocal: Bool) -> AVPlayerItem? {
         if isLocal {
             return AVPlayerItem(url: URL(fileURLWithPath: cdnURLString))
         }
-        // For local (Mac) playback: 127.0.0.1 relay when a proxy is set, else the CDN directly.
-        // For AirPlay: the LAN-IP relay so the TV can reach it and the Mac egresses via VPN/proxy.
-        let effective = forExternal ? state.airplayURLString(for: cdnURLString)
-                                    : state.playbackURLString(for: cdnURLString)
+        // Route remote streams through the Mac's LAN-IP relay for BOTH local playback and AirPlay:
+        // it's reachable locally and by the TV, egresses via the configured proxy, and — being
+        // LAN-routable rather than 127.0.0.1 — keeps the item AirPlay-eligible so macOS offers a
+        // real video route. Falls back to the loopback relay / direct CDN when no LAN IP exists.
+        let effective = state.lanRelayURLString(for: cdnURLString)
         guard let url = URL(string: effective) else { return nil }
         // HDRezka CDN expects a browser-like User-Agent (harmless for the local relay).
         let headers = ["User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
@@ -126,8 +126,8 @@ struct PlayerView: View {
             .sink { status in
                 if status == .readyToPlay { self.seekResumeIfNeeded(item: item) }
             }
-        // When AirPlay engages/disengages, rebuild the source against the right relay so the
-        // receiver (which fetches the URL itself) can reach the bytes.
+        // Track AirPlay engage/disengage for the on-screen overlay. No source swap is needed —
+        // remote items already play from the LAN-IP relay the receiver can reach directly.
         externalObserver = p.publisher(for: \.isExternalPlaybackActive)
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
@@ -136,21 +136,31 @@ struct PlayerView: View {
         observeEnd(of: item)
     }
 
-    /// AirPlay toggled. Rebuild the current remote item against the LAN relay (so the TV can pull
-    /// it) or back to the local relay/CDN, preserving the playback position. Local files are left
-    /// alone — AVPlayer already streams those to the receiver from this Mac.
+    /// AirPlay engaged/disengaged. Remote items need no swap — they already play from the LAN-IP
+    /// relay, which the receiver can fetch directly. Downloaded files do: a `file://` path means
+    /// nothing to the TV, so point it at the sidecar's `/media` URL while AirPlay is active and
+    /// return to the local file afterwards, preserving the playback position.
     private func handleExternalPlaybackChange(_ active: Bool) {
         guard active != isExternal else { return }
         isExternal = active
-        guard !target.isLocal, let cdn = curCDNURL, let p = player,
-              let item = makeItem(cdnURLString: cdn, isLocal: false, forExternal: active) else { return }
+        showOverlay(active ? "AirPlay — playing on TV" : "Playing on this Mac")
+
+        guard target.isLocal, let p = player else { return }
+        let swapped: AVPlayerItem
+        if active {
+            guard let s = state.localMediaURLString(forFilePath: target.urlString),
+                  let url = URL(string: s) else { return }   // no LAN IP: leave playback as-is
+            swapped = AVPlayerItem(url: url)
+        } else {
+            swapped = AVPlayerItem(url: URL(fileURLWithPath: target.urlString))
+        }
 
         let resumeAt = p.currentTime()
-        didSeekResume = true                       // suppress the resume-from-saved-position seek
-        observeEnd(of: item)
-        p.replaceCurrentItem(with: item)
+        didSeekResume = true                    // don't re-apply the saved resume position
+        observeEnd(of: swapped)
+        p.replaceCurrentItem(with: swapped)
         // Seek back to where we were once the swapped item is ready.
-        swapReadyObserver = item.publisher(for: \.status)
+        swapReadyObserver = swapped.publisher(for: \.status)
             .receive(on: DispatchQueue.main)
             .sink { status in
                 if status == .readyToPlay {
@@ -159,7 +169,6 @@ struct PlayerView: View {
                     self.swapReadyObserver?.cancel(); self.swapReadyObserver = nil
                 }
             }
-        showOverlay(active ? "AirPlay — streaming via this Mac" : "Playing on this Mac")
     }
 
     private func observeEnd(of item: AVPlayerItem) {
@@ -248,13 +257,12 @@ struct PlayerView: View {
                     return s.sortedQualities.last
                 }()
                 guard let q, let cdn = s.url(for: q),
-                      let item = makeItem(cdnURLString: cdn, isLocal: false, forExternal: isExternal),
+                      let item = makeItem(cdnURLString: cdn, isLocal: false),
                       let p = player else { return }
 
                 // Advance bookkeeping so progress + further autoplay use the new episode.
                 curEpisode = next
                 curQuality = q
-                curCDNURL = cdn
                 didSeekResume = true   // no resume for a freshly-started next episode
                 curResumeAt = 0
 

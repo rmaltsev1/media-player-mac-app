@@ -123,6 +123,13 @@ final class SidecarManager: ObservableObject {
             Task { @MainActor in self?.handleStdout(line) }
         }
 
+        // Drain stderr and discard. The sidecar logs a line per HTTP request; if nobody reads the
+        // pipe it fills (~64 KB) and the sidecar blocks on write — which stalls playback, since
+        // streaming a video issues hundreds of Range requests.
+        err.fileHandleForReading.readabilityHandler = { handle in
+            _ = handle.availableData
+        }
+
         proc.terminationHandler = { [weak self] p in
             Task { @MainActor in
                 self?.process = nil

@@ -24,6 +24,13 @@ Search for `VENDOR PATCH` in this folder. Current patches:
   `success:true, url:false`. `makeRequest` also now raises a descriptive `FetchFailed` message
   (geo-restriction / login / premium hints) instead of a bare "Failed to fetch stream!".
 - **errors.py `FetchFailed`** — accepts an optional message (for the diagnostics above).
+- **api.py `translators` auto-detect** — the no-`#translators-list` fallback (`getTranslationID`)
+  blindly split the whole page on the `sof.tv.initCDNMoviesEvents`/`initCDNSeriesEvents` marker and
+  `int()`'d the result. On titles with **no player at all** (e.g. an upcoming/not-yet-released film
+  that only shows a release date) the marker is absent, so it int()'d the leading HTML garbage and
+  raised `invalid literal for int() with base 10: 'follow' ...` — sinking `/info` entirely
+  ("Couldn't load title"). Now it returns `None` (→ empty translators) when the marker is missing or
+  the parse fails, so such titles load with metadata and simply no streams.
 - **api.py `translators`** — HDRezka moved the translator attributes (`data-translator_id`,
   `class`) off the `#translators-list` `<li>` and onto a nested `<a class="b-translator__item">`.
   Resolve the node that actually carries `data-translator_id` (supporting both the old `<li>` layout
