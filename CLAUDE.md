@@ -257,7 +257,9 @@ same Wi-Fi. It's in Swift rather than the sidecar because every command needs th
 
 - **Pairing:** every request except `/icon.png` must carry `?k=<key>` (`phoneRemoteKey` in
   UserDefaults). Settings → Phone remote shows the link as a QR code, plus a Bonjour-name variant,
-  and "New link" rotates the key. Toggle: `phoneRemoteEnabled`.
+  and "New link" rotates the key. Toggle: `phoneRemoteEnabled` (**off by default** — it opens a LAN
+  listener). `RemoteServer.parse` runs *before* the key check, so it must reject malformed input
+  (e.g. a negative `Content-Length`) rather than trap.
 - **API:** the page polls `GET /api/state` (Now Playing + Continue Watching) every second and
   sends `POST /api/cmd {cmd, value?|on?|url?}`: toggle, seek, seekTo, previous, next, skip,
   cancelSkip, volume, autoSkip, quality, airplay, fullScreen, close, open.

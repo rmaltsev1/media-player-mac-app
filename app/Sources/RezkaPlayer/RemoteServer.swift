@@ -129,6 +129,10 @@ final class RemoteServer: @unchecked Sendable {
                 length = Int(kv[1].trimmingCharacters(in: .whitespaces)) ?? 0
             }
         }
+        // A negative Content-Length would make the body range below trap — and this runs before
+        // the key check, so anyone on the LAN could crash the app. Never complete such a request;
+        // `read` drops the connection once the client gives up or the buffer cap is hit.
+        guard length >= 0 else { return nil }
         let bodyStart = end.upperBound
         guard data.endIndex - bodyStart >= length else { return nil }
         let url = URLComponents(string: "http://remote" + parts[1])

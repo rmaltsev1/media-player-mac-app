@@ -354,8 +354,9 @@ final class AppState: ObservableObject {
 
     // MARK: Phone remote
 
-    /// Serve the phone remote (see `PhoneRemote`) on the local network.
-    @AppStorage("phoneRemoteEnabled") var phoneRemoteEnabled: Bool = true {
+    /// Serve the phone remote (see `PhoneRemote`) on the local network. Off until the user turns
+    /// it on: it opens a LAN listener, which nobody should get without asking for it.
+    @AppStorage("phoneRemoteEnabled") var phoneRemoteEnabled: Bool = false {
         didSet { objectWillChange.send(); updatePhoneRemote() }
     }
     /// The secret in the remote's link; "New link" replaces it, retiring old links.
